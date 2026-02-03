@@ -186,30 +186,27 @@ export default function Nav({ type = 'public' }: NavProps) {
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-36">
+        <div className="flex items-center justify-between h-20 py-3">
           {/* Logo/Brand - Far Left */}
           <div className="flex-shrink-0">
             <Link href={type === 'provider' ? '/' : '/'} className="flex items-center">
               <Image 
                 src="/ZoneMeet_Logo.png" 
                 alt="Zone Meet Logo" 
-                width={250} 
-                height={250} 
+                width={120} 
+                height={120} 
                 className="hover:opacity-80 transition-opacity"
               />
             </Link>
           </div>
 
-          {/* Spacer */}
-          <div className="flex-1"></div>
-
           {/* Desktop Navigation - Centered */}
-          <div className="hidden md:flex md:items-center md:space-x-6">
+          <div className="hidden md:flex md:items-center md:space-x-3 lg:space-x-4 flex-1 justify-center mx-4">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-3 rounded-md text-lg font-medium transition-colors ${
+                className={`px-2 lg:px-3 py-2 rounded-md text-sm lg:text-base font-medium transition-colors ${
                   isActive(item.href)
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
@@ -220,38 +217,33 @@ export default function Nav({ type = 'public' }: NavProps) {
             ))}
           </div>
 
-          {/* Spacer */}
-          <div className="flex-1"></div>
-
           {/* User Menu - Fixed Right */}
-          <div className="hidden md:flex">
-            <div className="flex items-center justify-center ml-6 border-l border-gray-200 pl-6 gap-3">
-              {isLoading ? (
-                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-              ) : user ? (
-                <>
-                  <Link
-                    href="/provider/settings"
-                    className="bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Settings
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="bg-red-100 text-red-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-red-200 transition-colors"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
+          <div className="hidden md:flex md:items-center md:space-x-2 flex-shrink-0">
+            {isLoading ? (
+              <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+            ) : user ? (
+              <>
                 <Link
-                  href="/login"
-                  className="bg-blue-600 text-white px-4 py-3 rounded-md text-lg font-medium hover:bg-blue-700 transition-colors"
+                  href="/provider/settings"
+                  className="bg-gray-100 text-gray-700 px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-gray-200 transition-colors whitespace-nowrap"
                 >
-                  Login
+                  Settings
                 </Link>
-              )}
-            </div>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-red-200 transition-colors whitespace-nowrap"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
