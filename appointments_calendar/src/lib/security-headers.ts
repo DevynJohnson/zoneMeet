@@ -167,7 +167,9 @@ export function securityMiddleware(request: NextRequest) {
         '/api/login',
         '/api/register',
         '/api/oauth',
-        '/api/callback'
+        '/api/callback',
+        '/api/provider/calendar/connect',
+        '/api/provider/calendar/callback'
       ];
       
       const isAuthEndpoint = authEndpoints.some(endpoint => 
@@ -175,7 +177,16 @@ export function securityMiddleware(request: NextRequest) {
       );
       
       if (!isAuthEndpoint && !validateCSRFToken(csrfToken || '', sessionToken || '')) {
-        return new NextResponse('CSRF token validation failed', { status: 403 });
+        return new NextResponse(
+          JSON.stringify({
+            error: 'CSRF token validation failed',
+            message: 'Invalid or missing CSRF token'
+          }),
+          { 
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
       }
     }
   }
