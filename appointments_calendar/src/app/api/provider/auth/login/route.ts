@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       
     } catch (authError) {
       // Failed login - record failure
+      console.warn('Login failed for:', email, authError instanceof Error ? authError.message : 'Unknown error');
       accountLockout.recordFailedAttempt(email);
       
       // Get remaining attempts before lockout

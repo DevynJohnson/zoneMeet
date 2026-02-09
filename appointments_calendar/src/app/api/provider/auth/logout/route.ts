@@ -24,10 +24,11 @@ export async function POST(request: NextRequest) {
     console.log(`🔒 Provider logout: ${providerEmail} (${providerId})`);
 
     // Revoke the access token (add to blacklist)
-    if (accessToken) {
+    if (accessToken && jwtResult.payload?.exp) {
+      const expirationTime = Number(jwtResult.payload.exp) * 1000; // JWT exp is in seconds
       tokenBlacklist.revoke(
         accessToken, 
-        new Date(jwtResult.payload!.exp! * 1000), // JWT exp is in seconds
+        new Date(expirationTime),
         'logout'
       );
     }
