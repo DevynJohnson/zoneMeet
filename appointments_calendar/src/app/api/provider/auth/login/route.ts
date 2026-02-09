@@ -6,6 +6,8 @@ import { validateRequestBody, providerLoginSchema, createValidationErrorResponse
 import { addSecurityHeaders, addRateLimitHeaders } from '@/lib/security-headers';
 import { CalendarSyncService } from '@/lib/calendar-sync';
 import { prisma } from '@/lib/db';
+import { accountLockout } from '@/lib/account-lockout';
+import { TokenRefreshService } from '@/lib/token-refresh-service';
 
 // Background function to sync provider calendars after login
 async function triggerProviderCalendarSync(providerId: string): Promise<void> {
@@ -78,19 +80,70 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = validation.data;
 
+    // Check account lockout status
+    const lockoutStatus = accountLockout.isLocked(email);
+    if (lockoutStatus.locked) {
+      const minutesRemaining = Math.ceil((lockoutStatus.unlockAt!.getTime() - Date.now()) / 60000);
+      const errorResponse = NextResponse.json(
+        { 
+          error: lockoutStatus.reason === 'permanent' 
+            ? 'Account permanently locked due to repeated failed login attempts. Please contact support.'
+            : `Account temporarily locked. Try again in ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''}.`,
+          locked: true,
+          unlockAt: lockoutStatus.unlockAt,
+          reason: lockoutStatus.reason
+        },
+        { status: 423 } // 423 Locked
+      );
+      return addSecurityHeaders(errorResponse);
+    }
+
     // Authenticate provider
-    const result = await ProviderAuthService.authenticateProvider(email, password);
+    let result;
+    try {
+      result = await ProviderAuthService.authenticateProvider(email, password);
+      
+      // Successful login - reset lockout counter
+      accountLockout.recordSuccessfulLogin(email);
+      
+    } catch (authError) {
+      // Failed login - record failure
+      accountLockout.recordFailedAttempt(email);
+      
+      // Get remaining attempts before lockout
+      const remaining = accountLockout.getRemainingAttempts(email);
+      const errorMessage = remaining > 0 
+        ? `Invalid credentials. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+        : 'Invalid credentials.';
+      
+      const errorResponse = NextResponse.json(
+        { error: errorMessage, remainingAttempts: remaining },
+        { status: 401 }
+      );
+      return addSecurityHeaders(errorResponse);
+    }
+
+    // Generate token pair (access + refresh tokens)
+    const tokens = await TokenRefreshService.generateTokenPair(
+      result.provider.id, 
+      result.provider.email
+    );
 
     // If login successful, trigger calendar sync in the background
-    if (result.provider?.id && result.token) {
+    if (result.provider?.id) {
       // Fire and forget - don't wait for sync to complete
       triggerProviderCalendarSync(result.provider.id).catch((error: unknown) => {
         console.warn(`Background calendar sync failed for provider ${result.provider.id}:`, error);
       });
     }
 
-    // Create success response
-    const response = NextResponse.json(result);
+    // Create success response with both tokens
+    const response = NextResponse.json({
+      provider: result.provider,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: tokens.accessTokenExpiry.toISOString(),
+    });
 
     // Add security and rate limit headers
     const secureResponse = addSecurityHeaders(response);

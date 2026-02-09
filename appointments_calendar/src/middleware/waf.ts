@@ -135,7 +135,12 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
       '/api/oauth',
       '/api/callback',
       '/api/provider/calendar/connect',
-      '/api/provider/calendar/callback'
+      '/api/provider/calendar/callback',
+      '/api/client/batch-slot-availability', // Public batch availability check
+      '/api/client/booking/confirm', // Magic link confirmation
+      '/api/client/booking/details', // Magic link booking details
+      '/api/client/booking/reschedule', // Magic link reschedule
+      '/api/client/booking/cancel', // Magic link cancellation
     ];
     
     const isAuthEndpoint = authEndpoints.some(endpoint => 

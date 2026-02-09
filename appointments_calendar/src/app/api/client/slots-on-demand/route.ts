@@ -130,6 +130,7 @@ if (advancedAvailability.appliedSchedules.length > 0) {
     console.log('Final time slots to use:', finalTimeSlots);
 
     // Get provider locations for timezone and location display
+    // Prioritize custom (non-default) locations over default location
     const providerLocations = await prisma.providerLocation.findMany({
       where: {
         providerId: providerId,
@@ -147,27 +148,27 @@ if (advancedAvailability.appliedSchedules.length > 0) {
         isDefault: true,
       },
       orderBy: [
-        { isDefault: 'desc' },
+        { isDefault: 'asc' },  // Non-default (false) comes first
         { startDate: 'desc' }
       ]
     });
 
-   // Get timezone from the first location (already filtered for target date and sorted by default status)
+   // Get timezone and location from the first location (already filtered for target date)
+   // After fixing orderBy, this will be the custom location if one exists, otherwise default
 const currentLocation = providerLocations[0];
 const providerTimezone = currentLocation?.timezone || 'America/New_York';
 
     // Helper function to get location display
     const getLocationDisplay = (): string => {
-      const defaultLocation = providerLocations.find(location => location.isDefault);
-      if (defaultLocation) {
+      if (currentLocation) {
         const locationParts = [];
-        if (defaultLocation.city) locationParts.push(defaultLocation.city);
-        if (defaultLocation.stateProvince) locationParts.push(defaultLocation.stateProvince);
-        if (defaultLocation.country) locationParts.push(defaultLocation.country);
+        if (currentLocation.city) locationParts.push(currentLocation.city);
+        if (currentLocation.stateProvince) locationParts.push(currentLocation.stateProvince);
+        if (currentLocation.country) locationParts.push(currentLocation.country);
         
         let locationString = locationParts.join(', ');
-        if (defaultLocation.description) {
-          locationString += ` - ${defaultLocation.description}`;
+        if (currentLocation.description) {
+          locationString += ` - ${currentLocation.description}`;
         }
         return locationString || "Contact provider for location details";
       }

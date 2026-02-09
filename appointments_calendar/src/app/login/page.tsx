@@ -82,10 +82,11 @@ export default function ProviderLoginPage() {
       }
       keysToRemove.forEach(key => localStorage.removeItem(key));
 
-      // Store token with provider-specific key to prevent conflicts
-      const providerKey = `providerToken_${email}`;
-      localStorage.setItem('providerToken', data.token);
-      localStorage.setItem(providerKey, data.token);
+      // Store new token pair (access + refresh tokens)
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('expiresAt', data.expiresAt);
+      localStorage.setItem('providerToken', data.accessToken); // Backward compatibility
       localStorage.setItem('currentProviderEmail', email);
       
       // Redirect to dashboard
@@ -224,7 +225,7 @@ export default function ProviderLoginPage() {
                   Need to set up your account as a service provider?
                 </p>
                 <a
-                  href="/provider/register"
+                  href="/register"
                   className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                   Create An Account

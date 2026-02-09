@@ -84,6 +84,59 @@ function ClientBookingContent() {
     notes: '',
   });
   const [isBooking, setIsBooking] = useState(false);
+  const [slotCounts, setSlotCounts] = useState<Record<string, Record<number, number>>>({});
+
+  // Batch check slot counts for all dates and durations via single API call
+  const checkSlotAvailability = useCallback(async (availability: AvailabilityDay[]) => {
+    const startTime = Date.now();
+    
+    // Extract dates and durations from availability data
+    const dates = availability
+      .filter(day => day.hasAvailability)
+      .map(day => day.date);
+    
+    if (dates.length === 0) {
+      setSlotCounts({});
+      return;
+    }
+    
+    // Get unique durations across all days
+    const durationSet = new Set<number>();
+    availability.forEach(day => {
+      day.availableDurations.forEach(d => durationSet.add(d));
+    });
+    const durations = Array.from(durationSet);
+
+    console.log(`🔍 Checking availability for ${dates.length} dates × ${durations.length} durations...`);
+
+    try {
+      const response = await secureFetch('/api/client/batch-slot-availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          providerId: filters.providerId,
+          dates,
+          durations,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSlotCounts(data.slotCounts);
+        const endTime = Date.now();
+        console.log(`✅ Batch availability check: ${data.message} (client total: ${endTime - startTime}ms)`);
+      } else {
+        console.error('Failed to check batch availability:', data.error);
+        setSlotCounts({});
+      }
+    } catch (error) {
+      console.error('Error checking batch availability:', error);
+      setSlotCounts({});
+    }
+  }, [filters.providerId]);
 
   const fetchAvailabilityPreview = useCallback(async () => {
     if (!filters.providerId) {
@@ -128,6 +181,9 @@ function ClientBookingContent() {
           }
         });
         setProviderLocations(Array.from(uniqueLocations.values()));
+        
+        // Check actual slot availability using batch API (fast!)
+        await checkSlotAvailability(data.availability);
       } else {
         console.error('Failed to fetch availability preview');
         setAvailabilityPreview([]);
@@ -138,7 +194,7 @@ function ClientBookingContent() {
     } finally {
       setLoading(false);
     }
-  }, [filters, urlProviderId]);
+  }, [filters, urlProviderId, checkSlotAvailability]);
 
   const fetchSlotsForDateAndDuration = async (date: string, duration: number) => {
     setLoadingSlots(true);
@@ -298,9 +354,19 @@ function ClientBookingContent() {
     }
   };
 
-  // Filter availability based on selected location
+  // Filter availability based on selected location and actual slot counts
   const filteredAvailability = availabilityPreview.filter(day => {
     if (!day.hasAvailability) return false;
+    
+    // Check if this date has any available slots across all durations
+    const dateSlotCounts = slotCounts[day.date];
+    if (dateSlotCounts) {
+      const hasAnySlots = Object.values(dateSlotCounts).some(count => count > 0);
+      if (!hasAnySlots) {
+        console.log(`Filtering out ${day.date} - no slots available for any duration`);
+        return false;
+      }
+    }
     
     // If no location is selected, show all days
     if (!filters.selectedLocation) return true;
@@ -411,6 +477,7 @@ function ClientBookingContent() {
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2">Finding available appointments...</p>
+              <p className="text-sm text-gray-600 mt-1">Checking slot availability across all dates...</p>
             </div>
           ) : filteredAvailability.length === 0 ? (
             <div className="text-center py-8 bg-white rounded-lg border">
@@ -511,11 +578,22 @@ function ClientBookingContent() {
   className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 >
   {!selectedDuration && <option value="">Choose duration...</option>}
-  {dayInfo.availableDurations.map((duration: number) => (
-    <option key={duration} value={duration}>
-      {duration} minutes
-    </option>
-  ))}
+  {dayInfo.availableDurations
+    .filter((duration: number) => {
+      // Only show durations that have available slots
+      const dateSlotCounts = slotCounts[dateKey];
+      return !dateSlotCounts || dateSlotCounts[duration] > 0;
+    })
+    .map((duration: number) => {
+      const dateSlotCounts = slotCounts[dateKey];
+      const slotCount = dateSlotCounts?.[duration];
+      return (
+        <option key={duration} value={duration}>
+          {duration} minutes{slotCount ? ` (${slotCount} available)` : ''}
+        </option>
+      );
+    })
+  }
 </select>
                             </div>
 

@@ -46,8 +46,58 @@ model Provider {
   calendarConnections    CalendarConnection[]
   calendarEvents         CalendarEvent[]
   locations              ProviderLocation[]
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  auditLogs              AuditLog[]
 
   @@map("providers")
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  providerId String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  isRevoked  Boolean  @default(false)
+  revokedAt  DateTime?
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  providerId String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  usedAt     DateTime?
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  providerId String
+  action     String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([timestamp])
+  @@index([action])
+  @@map("audit_logs")
 }
 
 model ProviderLocation {

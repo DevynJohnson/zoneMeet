@@ -153,14 +153,24 @@ const dayDate = new Date(year, month - 1, dayNum); // months are 0-indexed in JS
 
     // Helper function to get location for a specific date
     const getLocationForDate = (date: string) => {
-      const targetDate = new Date(date);
+      // Parse as local date to avoid timezone conversion issues
+      const [year, month, day] = date.split('-').map(Number);
+      const targetDate = new Date(year, month - 1, day);
       
-      // Find location that covers this date
-      const applicableLocation = provider.locations.find(location => {
-        const startDate = new Date(location.startDate);
-        const endDate = new Date(location.endDate);
-        return targetDate >= startDate && targetDate <= endDate;
-      });
+      // Find location that covers this date (prioritize non-default)
+      const applicableLocation = provider.locations
+        .filter(location => {
+          const [sYear, sMonth, sDay] = location.startDate.toISOString().split('T')[0].split('-').map(Number);
+          const [eYear, eMonth, eDay] = location.endDate.toISOString().split('T')[0].split('-').map(Number);
+          const startDate = new Date(sYear, sMonth - 1, sDay);
+          const endDate = new Date(eYear, eMonth - 1, eDay);
+          return targetDate >= startDate && targetDate <= endDate;
+        })
+        .sort((a, b) => {
+          // Non-default locations first
+          if (a.isDefault !== b.isDefault) return a.isDefault ? 1 : -1;
+          return 0;
+        })[0];
       
       // If no specific location found, use default location
       if (!applicableLocation) {

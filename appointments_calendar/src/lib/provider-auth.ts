@@ -2,6 +2,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/db';
+import { tokenBlacklist } from '@/lib/token-blacklist';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production';
 
 export class ProviderAuthService {
@@ -101,13 +102,19 @@ export class ProviderAuthService {
    */
   static async verifyToken(token: string) {
     try {
+      // Check if token is blacklisted (revoked)
+      if (tokenBlacklist.isRevoked(token)) {
+        throw new Error('Token has been revoked');
+      }
+
       const decoded = jwt.verify(token, JWT_SECRET) as {
         providerId: string;
         email: string;
         type: string;
+        exp?: number;
       };
 
-      if (decoded.type !== 'provider') {
+      if (decoded.type !== 'provider' && decoded.type !== 'access') {
         throw new Error('Invalid token type');
       }
 

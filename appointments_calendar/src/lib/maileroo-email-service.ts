@@ -387,23 +387,27 @@ export class ZoneMeetEmailService {
           <p>Please review this request and take action below:</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <table style="margin: 0 auto; border-spacing: 10px;">
+            <table style="margin: 0 auto; width: 100%; max-width: 300px;">
               <tr>
-                <td>
+                <td style="padding: 8px 0;">
                   <a href="${confirmUrl}" 
-                     style="background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; margin: 0 5px;">
+                     style="background-color: #16a34a; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
                     ✅ Confirm
                   </a>
                 </td>
-                <td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
                   <a href="${denyUrl}" 
-                     style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; margin: 0 5px;">
+                     style="background-color: #dc2626; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
                     ❌ Deny
                   </a>
                 </td>
-                <td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
                   <a href="${rescheduleUrl}" 
-                     style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; margin: 0 5px;">
+                     style="background-color: #f59e0b; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
                     📅 Reschedule
                   </a>
                 </td>
@@ -480,7 +484,7 @@ export class ZoneMeetEmailService {
     const cancelToken = jwt.sign(cancelData, process.env.JWT_SECRET);
     const rescheduleToken = jwt.sign(rescheduleData, process.env.JWT_SECRET);
 
-    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/cancel?token=${cancelToken}`;
+    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/confirm?token=${cancelToken}`;
     const rescheduleUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/reschedule?token=${rescheduleToken}`;
     const providerDashboard = `${process.env.NEXT_PUBLIC_APP_URL}/provider/dashboard`;
 
@@ -518,14 +522,24 @@ export class ZoneMeetEmailService {
           <h3 style="color: #1f2937;">Need to Make Changes?</h3>
           
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${rescheduleUrl}" 
-               style="background-color: #f59e0b; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
-              Reschedule
-            </a>
-            <a href="${cancelUrl}" 
-               style="background-color: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
-              Cancel
-            </a>
+            <table style="margin: 0 auto; width: 100%; max-width: 300px;">
+              <tr>
+                <td style="padding: 8px 0;">
+                  <a href="${rescheduleUrl}" 
+                     style="background-color: #f59e0b; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
+                    📅 Reschedule
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
+                  <a href="${cancelUrl}" 
+                     style="background-color: #dc2626; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
+                    ❌ Cancel
+                  </a>
+                </td>
+              </tr>
+            </table>
           </div>
           
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
@@ -705,7 +719,136 @@ export class ZoneMeetEmailService {
   }
 
   /**
-   * 7. Email to customer when booking is rescheduled by provider
+   * 7. Email to customer requesting confirmation of provider-rescheduled appointment
+   */
+  async sendRescheduleConfirmationRequest(booking: BookingDetails, providerTimezone?: string): Promise<void> {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+
+    // Import date-fns-tz for timezone conversion
+    const { toZonedTime, format } = await import('date-fns-tz');
+    
+    // Use provider's timezone or default to Eastern
+    const timezone = providerTimezone || 'America/New_York';
+    
+    // Convert UTC time to provider's local timezone
+    const localScheduledAt = toZonedTime(booking.scheduledAt, timezone);
+    
+    // Format using date-fns format
+    const formattedDate = format(localScheduledAt, 'EEEE, MMMM d, yyyy', { timeZone: timezone });
+    const formattedTime = format(localScheduledAt, 'h:mm a', { timeZone: timezone });
+
+    // Generate magic link tokens for customer actions
+    const confirmData: MagicLinkData = {
+      bookingId: booking.id,
+      customerEmail: booking.customerEmail,
+      action: 'confirm',
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days
+    };
+
+    const cancelData: MagicLinkData = {
+      bookingId: booking.id,
+      customerEmail: booking.customerEmail,
+      action: 'cancel',
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days
+    };
+
+    const rescheduleData: MagicLinkData = {
+      bookingId: booking.id,
+      customerEmail: booking.customerEmail,
+      action: 'reschedule',
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days
+    };
+
+    const confirmToken = jwt.sign(confirmData, process.env.JWT_SECRET);
+    const cancelToken = jwt.sign(cancelData, process.env.JWT_SECRET);
+    const rescheduleToken = jwt.sign(rescheduleData, process.env.JWT_SECRET);
+
+    const confirmUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/confirm?token=${confirmToken}`;
+    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/confirm?token=${cancelToken}`;
+    const rescheduleUrl = `${process.env.NEXT_PUBLIC_APP_URL}/client/booking/reschedule?token=${rescheduleToken}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Confirm Rescheduled Appointment - Zone Meet</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          ${this.getBrandedHeader()}
+          
+          <h2 style="color: #f59e0b;">📅 Your Appointment Has Been Rescheduled</h2>
+          
+          <p>Hello ${booking.customerName},</p>
+          
+          <p><strong>${booking.providerName}</strong> has rescheduled your appointment to a new time. Please review the details below and confirm if this works for you.</p>
+          
+          <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #1e40af;">New Appointment Details</h3>
+            <p><strong>Provider:</strong> ${booking.providerName}</p>
+            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <p><strong>Date:</strong> ${formattedDate}</p>
+            <p><strong>Time:</strong> ${formattedTime}</p>
+            <p><strong>Duration:</strong> ${booking.duration} minutes</p>
+            ${booking.location ? `<p><strong>Location:</strong> ${booking.location}</p>` : ''}
+            ${booking.notes ? `<p><strong>Notes:</strong> ${booking.notes}</p>` : ''}
+          </div>
+          
+          <h3 style="color: #1f2937;">Please Choose an Action</h3>
+          <p>If the new time works for you, please confirm. If not, you can reschedule to a different time or cancel.</p>
+          
+          <div style="text-align: center; margin: 20px 0;">
+            <table style="margin: 0 auto; width: 100%; max-width: 300px;">
+              <tr>
+                <td style="padding: 8px 0;">
+                  <a href="${confirmUrl}" 
+                     style="background-color: #16a34a; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
+                    ✅ Confirm New Time
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
+                  <a href="${rescheduleUrl}" 
+                     style="background-color: #f59e0b; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
+                    📅 Pick Different Time
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0;">
+                  <a href="${cancelUrl}" 
+                     style="background-color: #dc2626; color: white; padding: 14px 24px; text-decoration: none; border-radius: 5px; display: block; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box;">
+                    ❌ Cancel Appointment
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="color: #dc2626; font-weight: bold;">⏰ Please respond within 7 days, or this appointment may be automatically cancelled.</p>
+          
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          
+          <p style="color: #666; font-size: 14px;">
+            This is an automated message from Zone Meet. If you have questions, please contact ${booking.providerName} directly.
+          </p>
+        </body>
+      </html>
+    `;
+
+    await this.sendEmail({
+      to: [booking.customerEmail],
+      subject: 'Confirm Your Rescheduled Appointment - Zone Meet',
+      html
+    });
+  }
+
+  /**
+   * 8. Email to customer when booking is rescheduled by provider (notification only - deprecated, use sendRescheduleConfirmationRequest instead)
    */
   async sendBookingReschedule(booking: BookingDetails, newDateTime?: Date): Promise<void> {
     const customerName = booking.customerName || 'Valued Customer';

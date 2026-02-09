@@ -1,9 +1,10 @@
 // Provider Bookings Management Page
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { secureFetch } from '@/lib/csrf';
+import { format, addDays } from 'date-fns';
 
 interface Customer {
   firstName: string | null;
@@ -32,7 +33,39 @@ interface Booking {
 
 type BookingStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'RESCHEDULED';
 
+interface TimeSlot {
+  id: string;
+  eventId: string;
+  startTime: string; // ISO datetime string
+  endTime: string; // ISO datetime string
+  duration: number;
+  provider: { id: string; name: string };
+  location: { display: string };
+  availableServices: string[];
+  eventTitle: string;
+  slotsRemaining: number;
+  type: string;
+}
+
 export default function ProviderBookings() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-800">Loading bookings...</p>
+        </div>
+      </div>
+    }>
+      <ProviderBookingsContent />
+    </Suspense>
+  );
+}
+
+function ProviderBookingsContent() {
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const action = searchParams.get('action');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +73,12 @@ export default function ProviderBookings() {
   const [statusFilter, setStatusFilter] = useState<BookingStatus>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rescheduleModal, setRescheduleModal] = useState<Booking | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const bookingRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const router = useRouter();
 
   const loadBookings = useCallback(async () => {
@@ -71,6 +110,27 @@ export default function ProviderBookings() {
     loadBookings();
   }, [loadBookings]);
 
+  // Handle query parameters for highlighting and auto-opening reschedule modal
+  useEffect(() => {
+    if (highlightId && bookings.length > 0 && !loading) {
+      const booking = bookings.find(b => b.id === highlightId);
+      if (booking) {
+        // Scroll to the highlighted booking
+        setTimeout(() => {
+          bookingRefs.current[highlightId]?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }, 100);
+
+        // Auto-open reschedule modal if action is reschedule
+        if (action === 'reschedule' && !rescheduleModal) {
+          setRescheduleModal(booking);
+        }
+      }
+    }
+  }, [highlightId, action, bookings, loading, rescheduleModal]);
+
   // Filter bookings based on status and search term
   useEffect(() => {
     let filtered = bookings;
@@ -97,7 +157,39 @@ export default function ProviderBookings() {
     setFilteredBookings(filtered);
   }, [bookings, statusFilter, searchTerm]);
 
+  // Load available slots when date is selected in reschedule modal
+  useEffect(() => {
+    if (!selectedDate || !rescheduleModal) return;
+
+    setLoadingSlots(true);
+    setSelectedSlot(null);
+
+    fetch(`/api/client/slots-on-demand?providerId=${rescheduleModal.provider.id}&date=${selectedDate}&duration=${rescheduleModal.duration}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.slots) {
+          setAvailableSlots(data.slots);
+        } else {
+          setAvailableSlots([]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load slots:', err);
+        setAvailableSlots([]);
+      })
+      .finally(() => setLoadingSlots(false));
+  }, [selectedDate, rescheduleModal]);
+
   const handleBookingAction = async (bookingId: string, action: 'confirm' | 'cancel' | 'reschedule') => {
+    // For reschedule, open the modal instead of direct API call
+    if (action === 'reschedule') {
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking) {
+        setRescheduleModal(booking);
+      }
+      return;
+    }
+
     setActionLoading(bookingId);
     try {
       const token = localStorage.getItem('providerToken');
@@ -117,6 +209,42 @@ export default function ProviderBookings() {
       await loadBookings();
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} booking`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleModal || !selectedDate || !selectedSlot) return;
+
+    setActionLoading(rescheduleModal.id);
+    try {
+      // selectedSlot.startTime is already a full ISO datetime string from the API
+      const newDateTime = new Date(selectedSlot.startTime);
+
+      const token = localStorage.getItem('providerToken');
+      const response = await secureFetch(`/api/provider/bookings/${rescheduleModal.id}/reschedule`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newDateTime: newDateTime.toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reschedule booking');
+      }
+
+      // Close modal and reload bookings
+      setRescheduleModal(null);
+      setSelectedDate('');
+      setSelectedSlot(null);
+      await loadBookings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reschedule booking');
     } finally {
       setActionLoading(null);
     }
@@ -269,9 +397,14 @@ export default function ProviderBookings() {
             {filteredBookings.map((booking) => {
               const { date, time } = formatDateTime(booking.scheduledAt);
               const customerName = `${booking.customer.firstName || ''} ${booking.customer.lastName || ''}`.trim() || 'Unknown Customer';
+              const isHighlighted = highlightId === booking.id;
               
               return (
-                <div key={booking.id} className="p-6">
+                <div 
+                  key={booking.id} 
+                  ref={(el) => { bookingRefs.current[booking.id] = el; }}
+                  className={`p-6 ${isHighlighted ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
@@ -345,6 +478,128 @@ export default function ProviderBookings() {
           </div>
         )}
       </div>
+
+      {/* Reschedule Modal */}
+      {rescheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Reschedule Appointment</h2>
+                  <p className="text-gray-600 mt-1">Select a new date and time for this appointment</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setRescheduleModal(null);
+                    setSelectedDate('');
+                    setSelectedSlot(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Current Booking Details */}
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-3">Current Appointment</h3>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p><strong>Customer:</strong> {`${rescheduleModal.customer.firstName || ''} ${rescheduleModal.customer.lastName || ''}`.trim()}</p>
+                  <p><strong>Service:</strong> {rescheduleModal.serviceType}</p>
+                  <p><strong>Current Time:</strong> {new Date(rescheduleModal.scheduledAt).toLocaleString()}</p>
+                  <p><strong>Duration:</strong> {rescheduleModal.duration} minutes</p>
+                  {rescheduleModal.notes && <p><strong>Notes:</strong> {rescheduleModal.notes}</p>}
+                </div>
+              </div>
+
+              {/* Date Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select New Date
+                </label>
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Choose a date...</option>
+                  {Array.from({ length: 14 }, (_, i) => {
+                    const date = addDays(new Date(), i + 1);
+                    const dateStr = format(date, 'yyyy-MM-dd');
+                    return (
+                      <option key={dateStr} value={dateStr}>
+                        {format(date, 'EEEE, MMMM d, yyyy')}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Time Slot Selection */}
+              {selectedDate && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select New Time
+                  </label>
+                  {loadingSlots ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Loading available times...</p>
+                    </div>
+                  ) : availableSlots.length === 0 ? (
+                    <p className="text-gray-500 py-4">No available time slots for this date.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {availableSlots.map((slot, idx) => {
+                        const slotTime = new Date(slot.startTime).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        });
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedSlot(slot)}
+                            className="px-3 py-2 rounded text-sm font-medium transition-colors bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 data-[selected=true]:bg-blue-600 data-[selected=true]:text-white"
+                            data-selected={selectedSlot?.startTime === slot.startTime}
+                          >
+                            {slotTime}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex justify-end space-x-4 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setRescheduleModal(null);
+                    setSelectedDate('');
+                    setSelectedSlot(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRescheduleSubmit}
+                  disabled={!selectedDate || !selectedSlot || actionLoading === rescheduleModal.id}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading === rescheduleModal.id ? 'Rescheduling...' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

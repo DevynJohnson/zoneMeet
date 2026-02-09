@@ -24,9 +24,32 @@ export async function POST(
     const params = await context.params;
     const bookingId = params.id;
 
-    // Parse request body for new datetime (optional for now)
+    // Parse request body for new datetime
     const body = await request.json().catch(() => ({}));
     const { newDateTime } = body;
+
+    if (!newDateTime) {
+      return NextResponse.json(
+        { error: 'New date and time is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate the new datetime
+    const newDate = new Date(newDateTime);
+    if (isNaN(newDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid date format' },
+        { status: 400 }
+      );
+    }
+
+    if (newDate <= new Date()) {
+      return NextResponse.json(
+        { error: 'New appointment time must be in the future' },
+        { status: 400 }
+      );
+    }
 
     // Find the booking and verify it belongs to this provider
     const booking = await prisma.booking.findFirst({
@@ -36,7 +59,15 @@ export async function POST(
       },
       include: {
         customer: true,
-        provider: true,
+        provider: {
+          include: {
+            locations: {
+              where: {
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -54,22 +85,34 @@ export async function POST(
       );
     }
 
-    // For now, just mark as RESCHEDULED and let provider handle new scheduling
-    // In a full implementation, this would include date/time selection
+    // Update the booking with new datetime and set to PENDING for customer confirmation
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: { 
-        status: 'RESCHEDULED',
+        status: 'PENDING', // Customer needs to confirm the new time
+        scheduledAt: newDate,
         updatedAt: new Date(),
-        ...(newDateTime && { scheduledAt: new Date(newDateTime) }),
       },
       include: {
         customer: true,
-        provider: true,
+        provider: {
+          include: {
+            locations: {
+              where: {
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    // Send reschedule notification to customer
+    // Get provider timezone from their active locations
+    const providerTimezone = updatedBooking.provider.locations?.find(loc => loc.isDefault)?.timezone 
+      || updatedBooking.provider.locations?.[0]?.timezone 
+      || 'America/New_York';
+
+    // Send reschedule confirmation request to customer with action buttons
     try {
       const bookingDetails = {
         id: updatedBooking.id,
@@ -77,21 +120,21 @@ export async function POST(
         customerEmail: updatedBooking.customer.email,
         providerName: updatedBooking.provider.name,
         providerEmail: updatedBooking.provider.email,
-        scheduledAt: booking.scheduledAt, // Original scheduled time
+        scheduledAt: updatedBooking.scheduledAt, // New scheduled time
         duration: updatedBooking.duration,
         serviceType: updatedBooking.serviceType,
         notes: updatedBooking.notes || undefined,
       };
       
-      await emailService.sendBookingReschedule(bookingDetails, newDateTime ? new Date(newDateTime) : undefined);
+      await emailService.sendRescheduleConfirmationRequest(bookingDetails, providerTimezone);
     } catch (error) {
-      console.error('Failed to send reschedule email:', error);
+      console.error('Failed to send reschedule confirmation email:', error);
       // Don't fail the reschedule if email sending fails
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Booking marked for rescheduling',
+      message: 'Booking rescheduled successfully',
       booking: {
         id: updatedBooking.id,
         status: updatedBooking.status,

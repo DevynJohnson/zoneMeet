@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractAndVerifyJWT } from '@/lib/jwt-utils';
 import { prisma } from '@/lib/db';
+import { tokenBlacklist } from '@/lib/token-blacklist';
+import { TokenRefreshService } from '@/lib/token-refresh-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +19,23 @@ export async function POST(request: NextRequest) {
 
     const providerId = jwtResult.payload!.providerId;
     const providerEmail = jwtResult.payload!.email;
+    const accessToken = authHeader?.split(' ')[1] || '';
 
     console.log(`🔒 Provider logout: ${providerEmail} (${providerId})`);
 
-    // Optional: Update provider's lastLoginAt to track logout time
+    // Revoke the access token (add to blacklist)
+    if (accessToken) {
+      tokenBlacklist.revoke(
+        accessToken, 
+        new Date(jwtResult.payload!.exp! * 1000), // JWT exp is in seconds
+        'logout'
+      );
+    }
+
+    // Revoke all refresh tokens for this provider
+    await TokenRefreshService.revokeAllProviderTokens(providerId);
+
+    // Update provider's lastLoginAt to track logout time
     try {
       await prisma.provider.update({
         where: { id: providerId },
@@ -30,9 +45,6 @@ export async function POST(request: NextRequest) {
       console.warn('Failed to update provider logout time:', dbError);
       // Don't fail logout if DB update fails
     }
-
-    // Clear any server-side sessions/caches if you have them
-    // For now, JWT invalidation happens on client side
 
     // Return success response with cache-clearing headers
     const response = NextResponse.json({ 

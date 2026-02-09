@@ -125,6 +125,9 @@ export default function Nav({ type = 'public' }: NavProps) {
         // Clear all provider-related localStorage items
         const currentProviderEmail = localStorage.getItem('currentProviderEmail');
         localStorage.removeItem('providerToken');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('expiresAt');
         localStorage.removeItem('currentProviderEmail');
         
         // Remove provider-specific token if exists
