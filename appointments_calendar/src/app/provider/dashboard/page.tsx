@@ -344,20 +344,28 @@ export default function ProviderDashboard() {
 
   const handleSyncCalendars = async () => {
     try {
+      setLoading(true);
+      setError('');
       const token = localStorage.getItem('providerToken');
       const response = await secureFetch('/api/provider/calendar/sync', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ forceSync: true }) // Force a full sync
       });
 
       if (!response.ok) {
-        throw new Error('Failed to sync calendars');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to sync calendars');
       }
 
       // Reload data after sync
-      loadDashboardData();
+      await loadDashboardData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed');
+      setLoading(false);
     }
   };
 

@@ -13,12 +13,21 @@ interface CalendarConnection {
   isActive: boolean;
   lastSyncAt: string | null;
   syncFrequency: number;
-
-
   createdAt: string;
   accessToken?: string;
   isDefaultForBookings?: boolean;
   syncEvents?: boolean;
+  selectedCalendars?: string[];
+  calendarSettings?: {[key: string]: {syncEvents: boolean}};
+}
+
+interface AvailableCalendar {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault?: boolean;
+  canWrite?: boolean;
+  color?: string;
 }
 
 interface CalendarEvent {
@@ -48,6 +57,74 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
   const [appleId, setAppleId] = useState('');
   const [appPassword, setAppPassword] = useState('');
 
+  // Multi-calendar state
+  const [availableCalendars, setAvailableCalendars] = useState<AvailableCalendar[]>([]);
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
+  const [selectedCalendars, setSelectedCalendars] = useState<string[]>(connection.selectedCalendars || []);
+  const [calendarSettings, setCalendarSettings] = useState<{[key: string]: {syncEvents: boolean}}>(connection.calendarSettings || {});
+
+  const loadCalendars = useCallback(async () => {
+    const token = localStorage.getItem('providerToken');
+    setLoadingCalendars(true);
+    setError(null);
+    
+    try {
+      if (connection.id) {
+        const calendarsResponse = await fetch(`/api/provider/calendar/available-calendars?platform=APPLE&connectionId=${encodeURIComponent(connection.id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (calendarsResponse.ok) {
+          const calendarsData = await calendarsResponse.json();
+          setAvailableCalendars(calendarsData.calendars || []);
+          
+          // Initialize selected calendars if not already set
+          if (!connection.selectedCalendars || connection.selectedCalendars.length === 0) {
+            const primaryCalendar = calendarsData.calendars?.find((cal: AvailableCalendar) => cal.isDefault) || calendarsData.calendars?.[0];
+            if (primaryCalendar) {
+              setSelectedCalendars([primaryCalendar.id]);
+            }
+          }
+          
+          // Initialize calendar settings if not already set
+          const initialCalendarSettings: {[key: string]: {syncEvents: boolean}} = {};
+          calendarsData.calendars?.forEach((cal: AvailableCalendar) => {
+            const savedCalendarSetting = connection.calendarSettings?.[cal.id];
+            initialCalendarSettings[cal.id] = {
+              syncEvents: savedCalendarSetting?.syncEvents ?? connection.syncEvents ?? true,
+            };
+          });
+          setCalendarSettings(initialCalendarSettings);
+        } else {
+          const errorText = await calendarsResponse.text();
+          console.error('Failed to fetch calendars:', errorText);
+          
+          // Parse error for better messaging
+          let errorMessage = 'Failed to load Apple calendars.';
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.error?.includes('credentials not found')) {
+              errorMessage = 'Apple Calendar credentials not configured. Please enter your Apple ID and App-Specific Password below, then click "Save Settings" to update your connection.';
+            } else {
+              errorMessage = errorData.error || errorMessage;
+            }
+          } catch {
+            errorMessage = 'Failed to load Apple calendars. Please check your credentials.';
+          }
+          
+          setError(errorMessage);
+        }
+      } else {
+        setError('No connection found. Please reconnect your Apple Calendar.');
+      }
+    } catch (calErr) {
+      console.error('Failed to load calendars:', calErr);
+      setError('Failed to load available calendars. Please check your network connection.');
+    } finally {
+      setLoadingCalendars(false);
+    }
+  }, [connection.id, connection.selectedCalendars, connection.syncEvents, connection.calendarSettings]);
+
   const loadData = useCallback(async () => {
     try {
       const token = localStorage.getItem('providerToken');
@@ -61,10 +138,13 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
         const eventsData = await eventsResponse.json();
         setEvents(eventsData.events || []);
       }
+
+      // Load available Apple calendars
+      await loadCalendars();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load calendar data');
     }
-  }, [connection.id]);
+  }, [connection.id, loadCalendars]);
 
   useEffect(() => {
     loadData();
@@ -75,11 +155,21 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
     try {
       const token = localStorage.getItem('providerToken');
       
+      // For now, use the settings from the primary calendar (connection.calendarId) 
+      // or default values if no specific settings are set
+      const primaryCalendarSettings = calendarSettings[connection.calendarId] || { syncEvents: true };
+      
       const updateData: {
         isActive: boolean;
         accessToken?: string;
+        syncEvents?: boolean;
+        selectedCalendars?: string[];
+        calendarSettings?: {[key: string]: {syncEvents: boolean}};
       } = {
         isActive,
+        syncEvents: primaryCalendarSettings.syncEvents,
+        selectedCalendars,
+        calendarSettings,
       };
 
       // For Apple connections, include updated credentials if provided
@@ -104,11 +194,18 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
         throw new Error(errorData.error || 'Failed to save settings');
       }
 
+      setError(null);
       alert('Apple Calendar settings saved successfully!');
-      await loadData(); // Reload to get updated data
       
       // Clear password field after successful save
       setAppPassword('');
+      
+      // Reload calendars if credentials were updated
+      if (appleId && appPassword) {
+        await loadCalendars();
+      }
+      
+      await loadData(); // Reload to get updated data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
@@ -207,10 +304,27 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <h3 className="text-sm font-medium text-red-800">Configuration Required</h3>
                 <div className="mt-2 text-sm text-red-700">
                   <p>{error}</p>
+                  {error.includes('credentials') && (
+                    <div className="mt-3 text-sm">
+                      <p className="font-medium">To fix this:</p>
+                      <ol className="list-decimal list-inside mt-1 space-y-1">
+                        <li>Enter your Apple ID in the form below</li>
+                        <li>Generate an App-Specific Password at <a href="https://appleid.apple.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-800">appleid.apple.com</a></li>
+                        <li>Enter the App-Specific Password</li>
+                        <li>Click &quot;Save Settings&quot;</li>
+                        <li>Your calendars will load automatically</li>
+                      </ol>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -301,13 +415,21 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-4">
+                  <div className="flex flex-wrap gap-4">
                     <button
                       onClick={handleSaveSettings}
                       disabled={saving}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
                     >
                       {saving ? 'Saving...' : 'Save Settings'}
+                    </button>
+                    
+                    <button
+                      onClick={loadCalendars}
+                      disabled={loadingCalendars}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {loadingCalendars ? 'Loading...' : 'Load Calendars'}
                     </button>
                     
                     <button
@@ -318,6 +440,101 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Multi-Calendar Management for Apple */}
+            <div className="mt-6 bg-white shadow rounded-lg">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Apple Calendar Selection
+                </h2>
+                <p className="text-sm text-gray-500">Choose which Apple iCloud Calendars to sync and manage</p>
+              </div>
+              
+              <div className="p-6">
+                {loadingCalendars ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-sm text-gray-600">Loading Apple Calendars...</p>
+                  </div>
+                ) : availableCalendars.length > 0 ? (
+                  <div className="space-y-3">
+                    {availableCalendars.map((calendar) => (
+                      <div key={calendar.id} className="border border-gray-200 rounded-md p-4 hover:border-blue-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900 flex items-center">
+                              {calendar.color && (
+                                <span 
+                                  className="w-3 h-3 rounded-full mr-2" 
+                                  style={{ backgroundColor: calendar.color }}
+                                />
+                              )}
+                              {calendar.name}
+                            </h3>
+                            {calendar.description && (
+                              <p className="text-sm text-gray-500 mt-1">{calendar.description}</p>
+                            )}
+                            <div className="flex items-center mt-2 space-x-4">
+                              {calendar.isDefault && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  Primary Calendar
+                                </span>
+                              )}
+                              {calendar.canWrite && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Can Create Events
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col space-y-2 ml-4">
+                            <label className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={calendarSettings[calendar.id]?.syncEvents || false}
+                                onChange={(e) => {
+                                  const newSettings = {
+                                    ...calendarSettings,
+                                    [calendar.id]: {
+                                      ...calendarSettings[calendar.id],
+                                      syncEvents: e.target.checked,
+                                    }
+                                  };
+                                  setCalendarSettings(newSettings);
+                                  
+                                  // Update selectedCalendars based on syncEvents
+                                  if (e.target.checked) {
+                                    if (!selectedCalendars.includes(calendar.id)) {
+                                      setSelectedCalendars([...selectedCalendars, calendar.id]);
+                                    }
+                                  } else {
+                                    setSelectedCalendars(selectedCalendars.filter(id => id !== calendar.id));
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                              />
+                              <span className="ml-2 text-sm font-medium text-gray-700">
+                                Sync Events
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm">No calendars available. Please check your Apple ID credentials.</p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -542,14 +542,21 @@ export class CalendarConnectionService {
         appSpecificPassword: appPassword,
       });
 
-      return appleCalendars.map(calendar => ({
-        id: calendar.url.split('/').pop() || 'unknown',
-        name: calendar.displayName,
-        description: calendar.description,
-        isDefault: calendar.displayName.toLowerCase().includes('calendar'),
-        canWrite: true,
-        color: calendar.calendarColor,
-      }));
+      return appleCalendars.map((calendar, index) => {
+        // Generate a unique ID from the calendar URL
+        // Use the full path to ensure uniqueness
+        const urlParts = calendar.url.split('/');
+        const calendarId = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1] || `calendar-${index}`;
+        
+        return {
+          id: calendarId || `apple-cal-${index}`,
+          name: calendar.displayName,
+          description: calendar.description,
+          isDefault: calendar.displayName.toLowerCase().includes('primary') || index === 0,
+          canWrite: true,
+          color: calendar.calendarColor,
+        };
+      });
     } catch (error) {
       console.error('Failed to fetch Apple calendars:', error);
       // Fallback to basic calendar if fetch fails
