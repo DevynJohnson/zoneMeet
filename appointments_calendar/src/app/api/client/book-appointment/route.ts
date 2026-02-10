@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         timezone: true,
         city: true,
         stateProvince: true,
+        postalCode: true,
         country: true,
         description: true,
         addressLine1: true,
@@ -81,24 +82,36 @@ export async function POST(request: NextRequest) {
     const providerTimezone = providerLocation?.timezone || 'America/New_York';
     console.log('Provider timezone:', providerTimezone);
     
-    // Format location display string
+    // Format location display string for email
     const formatLocation = () => {
       if (!providerLocation) return 'To be confirmed';
       
-      // If there's a custom description, use it
+      // Build address line
+      const addressParts = [];
+      if (providerLocation.addressLine1) addressParts.push(providerLocation.addressLine1);
+      if (providerLocation.addressLine2) addressParts.push(providerLocation.addressLine2);
+      
+      // Build city/state/postal/country line
+      const locationParts = [];
+      if (providerLocation.city) locationParts.push(providerLocation.city);
+      
+      // Combine state and postal code
+      const statePostal = [];
+      if (providerLocation.stateProvince) statePostal.push(providerLocation.stateProvince);
+      if (providerLocation.postalCode) statePostal.push(providerLocation.postalCode);
+      if (statePostal.length > 0) locationParts.push(statePostal.join(' '));
+      
+      if (providerLocation.country) locationParts.push(providerLocation.country);
+      
+      // Combine address and location
+      const fullAddress = [...addressParts, locationParts.join(', ')].filter(Boolean).join(', ');
+      
+      // Add description on separate line if it exists
       if (providerLocation.description) {
-        return providerLocation.description;
+        return fullAddress ? `${fullAddress}<br/>Location Details: ${providerLocation.description}` : providerLocation.description;
       }
       
-      // Otherwise, build from address components
-      const parts = [];
-      if (providerLocation.addressLine1) parts.push(providerLocation.addressLine1);
-      if (providerLocation.addressLine2) parts.push(providerLocation.addressLine2);
-      if (providerLocation.city) parts.push(providerLocation.city);
-      if (providerLocation.stateProvince) parts.push(providerLocation.stateProvince);
-      if (providerLocation.country) parts.push(providerLocation.country);
-      
-      return parts.length > 0 ? parts.join(', ') : 'To be confirmed';
+      return fullAddress || 'To be confirmed';
     };
     
     const locationDisplay = formatLocation();

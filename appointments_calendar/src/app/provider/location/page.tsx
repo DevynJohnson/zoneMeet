@@ -11,6 +11,7 @@ interface LocationFormData {
   addressLine2?: string;
   city: string;
   stateProvince: string;
+  postalCode?: string;
   country: string;
   timezone?: string;
   description: string;
@@ -31,6 +32,7 @@ export default function ManageLocationPage() {
     addressLine2: '',
     city: '',
     stateProvince: '',
+    postalCode: '',
     country: '',
     description: '',
     startDate: '',
@@ -247,6 +249,7 @@ export default function ManageLocationPage() {
         addressLine2: '',
         city: '',
         stateProvince: '',
+        postalCode: '',
         country: '',
         timezone: '',
         description: '',
@@ -271,6 +274,7 @@ export default function ManageLocationPage() {
       addressLine2: location.addressLine2 || '',
       city: location.city,
       stateProvince: location.stateProvince,
+      postalCode: location.postalCode || '',
       country: location.country,
       timezone: location.timezone,
       description: location.description || '',
@@ -530,6 +534,19 @@ export default function ManageLocationPage() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter state or province"
                       required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                      ZIP/Postal Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter ZIP or postal code"
                     />
                   </div>
                   

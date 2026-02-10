@@ -26,6 +26,7 @@ export async function PUT(
       addressLine2, 
       city, 
       stateProvince, 
+      postalCode,
       country, 
       description, 
       startDate, 
@@ -88,6 +89,7 @@ export async function PUT(
         addressLine2,       // Add this
         city,
         stateProvince,
+        postalCode: postalCode || null,
         country,
         description: description || null,
         startDate: start,

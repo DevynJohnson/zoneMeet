@@ -5,6 +5,7 @@ export interface ProviderLocation {
   addressLine2?: string;
   city: string;
   stateProvince: string;
+  postalCode?: string;
   country: string;
   description?: string;
   startDate: string;
