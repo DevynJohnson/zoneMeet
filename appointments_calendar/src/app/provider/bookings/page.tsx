@@ -24,14 +24,14 @@ interface Booking {
   duration: number;
   serviceType: string;
   notes: string | null;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'RESCHEDULED';
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   customer: Customer;
   provider: Provider;
   createdAt: string;
   updatedAt: string;
 }
 
-type BookingStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'RESCHEDULED';
+type BookingStatus = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
 interface TimeSlot {
   id: string;
@@ -78,6 +78,7 @@ function ProviderBookingsContent() {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [clearAllModal, setClearAllModal] = useState(false);
   const bookingRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const router = useRouter();
 
@@ -216,6 +217,70 @@ function ProviderBookingsContent() {
     }
   };
 
+  const handleDelete = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return;
+    }
+
+    setActionLoading(bookingId);
+    try {
+      const token = localStorage.getItem('providerToken');
+      const response = await secureFetch(`/api/provider/bookings/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete booking');
+      }
+
+      // Reload bookings to reflect changes
+      await loadBookings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete booking');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleClearAll = async () => {
+    setClearAllModal(false);
+    setActionLoading('clear-all');
+    try {
+      const token = localStorage.getItem('providerToken');
+      const response = await secureFetch('/api/provider/bookings', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to clear bookings');
+      }
+
+      const data = await response.json();
+      
+      // Reload bookings to reflect changes
+      await loadBookings();
+      
+      // Show success message
+      if (data.deletedCount === 0) {
+        setError('No old bookings to clear (cancelled or completed).');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to clear bookings');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRescheduleSubmit = async () => {
     if (!rescheduleModal || !selectedDate || !selectedSlot) return;
 
@@ -275,10 +340,10 @@ function ProviderBookingsContent() {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'CONFIRMED':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'COMPLETED':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'CANCELLED':
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'RESCHEDULED':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -289,8 +354,8 @@ function ProviderBookingsContent() {
       ALL: bookings.length,
       PENDING: bookings.filter(b => b.status === 'PENDING').length,
       CONFIRMED: bookings.filter(b => b.status === 'CONFIRMED').length,
+      COMPLETED: bookings.filter(b => b.status === 'COMPLETED').length,
       CANCELLED: bookings.filter(b => b.status === 'CANCELLED').length,
-      RESCHEDULED: bookings.filter(b => b.status === 'RESCHEDULED').length,
     };
   };
 
@@ -367,6 +432,14 @@ function ProviderBookingsContent() {
           <span className="text-sm text-gray-600">
             Showing {filteredBookings.length} of {bookings.length} bookings
           </span>
+          <button
+            onClick={() => setClearAllModal(true)}
+            disabled={loading || actionLoading === 'clear-all' || (statusCounts.CANCELLED + statusCounts.COMPLETED) === 0}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Delete all old bookings (cancelled and completed)"
+          >
+            {actionLoading === 'clear-all' ? 'Clearing...' : 'Clear All Old'}
+          </button>
           <button
             onClick={loadBookings}
             disabled={loading}
@@ -470,6 +543,18 @@ function ProviderBookingsContent() {
                           className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
                         >
                           {actionLoading === booking.id ? '...' : 'Cancel'}
+                        </button>
+                      </div>
+                    )}
+                    
+                    {(booking.status === 'CANCELLED' || booking.status === 'COMPLETED') && (
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={() => handleDelete(booking.id)}
+                          disabled={actionLoading === booking.id}
+                          className="bg-gray-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
+                        >
+                          {actionLoading === booking.id ? '...' : 'Delete'}
                         </button>
                       </div>
                     )}
@@ -596,6 +681,41 @@ function ProviderBookingsContent() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoading === rescheduleModal.id ? 'Rescheduling...' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Confirmation Modal */}
+      {clearAllModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                Clear All Old Bookings?
+              </h3>
+              <p className="text-gray-600 text-center mb-6">
+                This will permanently delete all old bookings - cancelled and completed ({statusCounts.CANCELLED + statusCounts.COMPLETED} total). This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setClearAllModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Delete All
                 </button>
               </div>
             </div>

@@ -72,3 +72,43 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Bulk delete endpoint for clearing old bookings
+export async function DELETE(request: NextRequest) {
+  try {
+    // Extract and verify the JWT token
+    const authHeader = request.headers.get('Authorization');
+    const jwtResult = extractAndVerifyJWT(authHeader);
+    
+    if (!jwtResult.success) {
+      return NextResponse.json(
+        { error: jwtResult.error },
+        { status: 401 }
+      );
+    }
+
+    const providerId = jwtResult.payload!.providerId;
+
+    // Delete all CANCELLED and COMPLETED bookings for this provider
+    const result = await prisma.booking.deleteMany({
+      where: {
+        providerId: providerId,
+        status: {
+          in: ['CANCELLED', 'COMPLETED'],
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${result.count} booking(s)`,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error('Error bulk deleting bookings:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete bookings' },
+      { status: 500 }
+    );
+  }
+}

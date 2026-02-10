@@ -170,11 +170,18 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
 }
 
 function getClientIP(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
          request.headers.get('x-real-ip') ||
          request.headers.get('cf-connecting-ip') || // Cloudflare
          request.headers.get('x-client-ip') ||
-         'unknown';
+         null;
+  
+  // In development, default to localhost IP if no headers present
+  if (!ip && process.env.NODE_ENV === 'development') {
+    return '127.0.0.1';
+  }
+  
+  return ip || 'unknown';
 }
 
 function detectSuspiciousPatterns(request: NextRequest): { isSuspicious: boolean; reason?: string } {
