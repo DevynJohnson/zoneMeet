@@ -40,6 +40,15 @@ interface Slot {
   type?: string; // 'automatic' or 'manual'
 }
 
+interface BookingFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  serviceType: string;
+  notes: string;
+}
+
 export default function ClientBooking() {
   return (
     <Suspense fallback={<div className="p-6">Loading booking page...</div>}>
@@ -75,7 +84,7 @@ function ClientBookingContent() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [selectedTimeByDate, setSelectedTimeByDate] = useState<Record<string, string>>({});
   const [selectedDurationByDate, setSelectedDurationByDate] = useState<Record<string, number>>({});
-  const [bookingForm, setBookingForm] = useState(() => {
+  const [bookingForm, setBookingForm] = useState<BookingFormData>(() => {
     // Load saved form data from localStorage if available
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('bookingFormData');
