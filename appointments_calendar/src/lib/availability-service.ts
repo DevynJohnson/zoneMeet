@@ -817,6 +817,56 @@ export class AvailabilityService {
       })
     ]);
 
+    if (conflictingEvents > 0 || conflictingBookings > 0) {
+      // Log details for debugging
+      const events = await prisma.calendarEvent.findMany({
+        where: {
+          providerId,
+          OR: [
+            {
+              AND: [
+                { startTime: { lte: slotStart } },
+                { endTime: { gt: slotStart } }
+              ]
+            },
+            {
+              AND: [
+                { startTime: { lt: slotEnd } },
+                { endTime: { gte: slotEnd } }
+              ]
+            },
+            {
+              AND: [
+                { startTime: { gte: slotStart } },
+                { endTime: { lte: slotEnd } }
+              ]
+            }
+          ]
+        },
+        select: {
+          title: true,
+          startTime: true,
+          endTime: true,
+          platform: true,
+          calendarId: true,
+        }
+      });
+
+      console.log('❌ Booking slot conflict detected:', {
+        slotStart: slotStart.toISOString(),
+        slotEnd: slotEnd.toISOString(),
+        conflictingEvents,
+        conflictingBookings,
+        events: events.map(e => ({
+          title: e.title,
+          start: e.startTime.toISOString(),
+          end: e.endTime.toISOString(),
+          platform: e.platform,
+          calendarId: e.calendarId,
+        }))
+      });
+    }
+
     return conflictingEvents === 0 && conflictingBookings === 0;
   }
 

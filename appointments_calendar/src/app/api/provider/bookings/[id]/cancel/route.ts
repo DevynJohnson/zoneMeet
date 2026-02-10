@@ -56,7 +56,20 @@ async function handleCancelBooking(
       where: whereClause,
       include: {
         customer: true,
-        provider: true,
+        provider: {
+          include: {
+            calendarConnections: {
+              where: {
+                isDefaultForBookings: true,
+                isActive: true,
+              },
+              select: {
+                email: true,
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -88,13 +101,16 @@ async function handleCancelBooking(
     });
 
     // Send cancellation email to customer
+    // Use the default calendar email if available, otherwise use provider signup email
+    const providerNotificationEmail = booking.provider.calendarConnections?.[0]?.email || updatedBooking.provider.email;
+    
     try {
       const bookingDetails = {
         id: updatedBooking.id,
         customerName: `${updatedBooking.customer.firstName || ''} ${updatedBooking.customer.lastName || ''}`.trim() || 'Valued Customer',
         customerEmail: updatedBooking.customer.email,
         providerName: updatedBooking.provider.name,
-        providerEmail: updatedBooking.provider.email,
+        providerEmail: providerNotificationEmail, // Use default calendar email
         scheduledAt: updatedBooking.scheduledAt,
         duration: updatedBooking.duration,
         serviceType: updatedBooking.serviceType,

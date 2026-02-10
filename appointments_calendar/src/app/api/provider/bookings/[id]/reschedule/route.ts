@@ -66,6 +66,16 @@ export async function POST(
                 isActive: true,
               },
             },
+            calendarConnections: {
+              where: {
+                isDefaultForBookings: true,
+                isActive: true,
+              },
+              select: {
+                email: true,
+              },
+              take: 1,
+            },
           },
         },
       },
@@ -112,6 +122,9 @@ export async function POST(
       || updatedBooking.provider.locations?.[0]?.timezone 
       || 'America/New_York';
 
+    // Use the default calendar email if available, otherwise use provider signup email
+    const providerNotificationEmail = booking.provider.calendarConnections?.[0]?.email || updatedBooking.provider.email;
+
     // Send reschedule confirmation request to customer with action buttons
     try {
       const bookingDetails = {
@@ -119,7 +132,7 @@ export async function POST(
         customerName: `${updatedBooking.customer.firstName || ''} ${updatedBooking.customer.lastName || ''}`.trim() || 'Valued Customer',
         customerEmail: updatedBooking.customer.email,
         providerName: updatedBooking.provider.name,
-        providerEmail: updatedBooking.provider.email,
+        providerEmail: providerNotificationEmail, // Use default calendar email
         scheduledAt: updatedBooking.scheduledAt, // New scheduled time
         duration: updatedBooking.duration,
         serviceType: updatedBooking.serviceType,

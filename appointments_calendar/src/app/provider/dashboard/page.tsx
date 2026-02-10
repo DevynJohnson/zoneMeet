@@ -504,7 +504,7 @@ export default function ProviderDashboard() {
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-medium text-gray-900">Default Calendar for New Bookings</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Choose where new booking events will be written. Only calendars with sync enabled are shown here. If you do not see a calendar that you have connected, please make sure it has &quot;Sync Events&quot; enabled on the Manage Calendar page.
+              Choose where new booking events will be written. Appointment confirmation emails will also be sent to this email address. Only calendars with sync enabled are shown here. If you do not see a calendar that you have connected, please make sure it has &quot;Sync Events&quot; enabled on the Manage Calendar page.
             </p>
           </div>
           <div className="px-6 py-4">

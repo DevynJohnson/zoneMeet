@@ -35,12 +35,31 @@ export async function POST(request: NextRequest) {
     // Validate provider exists
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
-      select: { id: true, name: true, email: true, phone: true, bufferTime: true }
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        phone: true, 
+        bufferTime: true,
+        calendarConnections: {
+          where: {
+            isDefaultForBookings: true,
+            isActive: true,
+          },
+          select: {
+            email: true,
+          },
+          take: 1,
+        }
+      }
     });
 
     if (!provider) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
     }
+
+    // Use the default calendar email if available, otherwise use provider signup email
+    const providerNotificationEmail = provider.calendarConnections[0]?.email || provider.email;
 
     // Fetch provider timezone early - needed for both manual and automatic bookings (for email formatting)
     const providerLocation = await prisma.providerLocation.findFirst({
@@ -322,7 +341,7 @@ export async function POST(request: NextRequest) {
         customerName: `${bookingResult.customer.firstName} ${bookingResult.customer.lastName}`,
         customerEmail: bookingResult.customer.email,
         providerName: bookingResult.provider.name,
-        providerEmail: bookingResult.provider.email,
+        providerEmail: providerNotificationEmail, // Use default calendar email
         scheduledAt: bookingResult.scheduledAt,
         duration: bookingResult.duration,
         serviceType: bookingResult.serviceType,

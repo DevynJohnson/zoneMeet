@@ -151,12 +151,15 @@ async function handleConfirmBooking(
     }
 
     // Send confirmation emails to both parties
+    // Use the default calendar email if available, otherwise use provider signup email
+    const providerNotificationEmail = booking.provider.calendarConnections[0]?.email || updatedBooking.provider.email;
+    
     const bookingDetails = {
   id: updatedBooking.id,
   customerName: `${updatedBooking.customer.firstName || 'Unknown'} ${updatedBooking.customer.lastName || 'Customer'}`,
   customerEmail: updatedBooking.customer.email,
   providerName: updatedBooking.provider.name,
-  providerEmail: updatedBooking.provider.email,
+  providerEmail: providerNotificationEmail, // Use default calendar email
   scheduledAt: updatedBooking.scheduledAt,
   duration: updatedBooking.duration,
   serviceType: updatedBooking.serviceType,

@@ -129,12 +129,15 @@ export async function GET(request: NextRequest) {
       }
 
       // Send confirmation emails
+      // Use the default calendar email if available, otherwise use provider signup email
+      const providerNotificationEmail = booking.provider.calendarConnections[0]?.email || confirmedBooking.provider.email;
+      
       const bookingDetails = {
   id: confirmedBooking.id,
   customerName: `${confirmedBooking.customer.firstName || 'Unknown'} ${confirmedBooking.customer.lastName || 'Customer'}`,
   customerEmail: confirmedBooking.customer.email,
   providerName: confirmedBooking.provider.name,
-  providerEmail: confirmedBooking.provider.email,
+  providerEmail: providerNotificationEmail, // Use default calendar email
   scheduledAt: confirmedBooking.scheduledAt,
   duration: confirmedBooking.duration,
   serviceType: confirmedBooking.serviceType,
