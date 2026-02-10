@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
                 calendarId: true,
                 accessToken: true,
                 refreshToken: true,
+                email: true,
               },
             },
           },
