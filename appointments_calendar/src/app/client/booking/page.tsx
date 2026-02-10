@@ -75,13 +75,26 @@ function ClientBookingContent() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [selectedTimeByDate, setSelectedTimeByDate] = useState<Record<string, string>>({});
   const [selectedDurationByDate, setSelectedDurationByDate] = useState<Record<string, number>>({});
-  const [bookingForm, setBookingForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    serviceType: 'consultation',
-    notes: '',
+  const [bookingForm, setBookingForm] = useState(() => {
+    // Load saved form data from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bookingFormData');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // If parsing fails, use defaults
+        }
+      }
+    }
+    return {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      serviceType: 'consultation',
+      notes: '',
+    };
   });
   const [isBooking, setIsBooking] = useState(false);
   const [slotCounts, setSlotCounts] = useState<Record<string, Record<number, number>>>({});
@@ -274,14 +287,18 @@ function ClientBookingContent() {
     
     if (data.success) {
       alert(data.message || 'Booking request submitted! Please check your email for a confirmation link.');
+      
+      // Save form data (except notes) to localStorage for future bookings
+      const dataToSave = {
+        ...bookingForm,
+        notes: '', // Don't save notes
+      };
+      localStorage.setItem('bookingFormData', JSON.stringify(dataToSave));
+      
       setSelectedSlot(null);
       setBookingForm({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        serviceType: 'consultation',
-        notes: '',
+        ...bookingForm,
+        notes: '', // Clear only notes after successful booking
       });
       fetchAvailabilityPreview();
     } else {
@@ -703,6 +720,7 @@ function ClientBookingContent() {
                     <input
                       type="text"
                       required
+                      autoComplete="given-name"
                       value={bookingForm.firstName}
                       onChange={(e) => setBookingForm(prev => ({ ...prev, firstName: e.target.value }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -713,6 +731,7 @@ function ClientBookingContent() {
                     <input
                       type="text"
                       required
+                      autoComplete="family-name"
                       value={bookingForm.lastName}
                       onChange={(e) => setBookingForm(prev => ({ ...prev, lastName: e.target.value }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -725,6 +744,7 @@ function ClientBookingContent() {
                   <input
                     type="email"
                     required
+                    autoComplete="email"
                     value={bookingForm.email}
                     onChange={(e) => setBookingForm(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -735,6 +755,7 @@ function ClientBookingContent() {
                   <label className="block text-sm font-medium mb-1">Phone (Optional)</label>
                   <input
                     type="tel"
+                    autoComplete="tel"
                     value={bookingForm.phone}
                     onChange={(e) => setBookingForm(prev => ({ ...prev, phone: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

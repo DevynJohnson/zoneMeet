@@ -51,6 +51,16 @@ export class ZoneMeetEmailService {
   }
 
   /**
+   * Capitalize service type for display
+   */
+  private capitalizeServiceType(serviceType: string): string {
+    return serviceType
+      .split(/[-_\s]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
    * Generate branded email header with Zone Meet logo
    */
   private getBrandedHeader(): string {
@@ -373,10 +383,10 @@ export class ZoneMeetEmailService {
           <p>You have received a new appointment request from <strong>${booking.customerName}</strong>.</p>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #1f2937;">Appointment Details</h3>
+            <h3 style="margin-top: 0; color: #1f2937; text-align: center;">Appointment Details</h3>
             <p><strong>Client:</strong> ${booking.customerName}</p>
             <p><strong>Email:</strong> ${booking.customerEmail}</p>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Time:</strong> ${formattedTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>
@@ -384,7 +394,7 @@ export class ZoneMeetEmailService {
             ${booking.notes ? `<p><strong>Notes:</strong> ${booking.notes}</p>` : ''}
           </div>
           
-          <p>Please review this request and take action below:</p>
+          <p style="text-align: center;">Please review this request and take action below:</p>
           
           <div style="text-align: center; margin: 30px 0;">
             <table style="margin: 0 auto; width: 100%; max-width: 300px;">
@@ -507,9 +517,9 @@ export class ZoneMeetEmailService {
           <p>Great news! Your appointment with <strong>${booking.providerName}</strong> has been confirmed.</p>
           
           <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #15803d;">Your Appointment Details</h3>
+            <h3 style="margin-top: 0; color: #15803d; text-align: center;">Your Appointment Details</h3>
             <p><strong>Provider:</strong> ${booking.providerName}</p>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Time:</strong> ${formattedTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>
@@ -570,10 +580,10 @@ export class ZoneMeetEmailService {
           <p>You have successfully confirmed an appointment with <strong>${booking.customerName}</strong>.</p>
           
           <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #15803d;">Appointment Details</h3>
+            <h3 style="margin-top: 0; color: #15803d; text-align: center;">Appointment Details</h3>
             <p><strong>Client:</strong> ${booking.customerName}</p>
             <p><strong>Email:</strong> ${booking.customerEmail}</p>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Time:</strong> ${formattedTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>
@@ -685,8 +695,8 @@ export class ZoneMeetEmailService {
           <p>We regret to inform you that your appointment with <strong>${booking.providerName}</strong> has been cancelled.</p>
           
           <div style="background-color: #fee2e2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #991b1b;">Cancelled Appointment Details</h3>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <h3 style="margin-top: 0; color: #991b1b; text-align: center;">Cancelled Appointment Details</h3>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Time:</strong> ${formattedTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>
@@ -787,9 +797,9 @@ export class ZoneMeetEmailService {
           <p><strong>${booking.providerName}</strong> has rescheduled your appointment to a new time. Please review the details below and confirm if this works for you.</p>
           
           <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #1e40af;">New Appointment Details</h3>
+            <h3 style="margin-top: 0; color: #1e40af; text-align: center;">New Appointment Details</h3>
             <p><strong>Provider:</strong> ${booking.providerName}</p>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Time:</strong> ${formattedTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>
@@ -882,7 +892,7 @@ export class ZoneMeetEmailService {
       
       newDateSection = `
         <div style="background-color: #dbeafe; border: 1px solid #93c5fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #1e40af;">New Appointment Time</h3>
+          <h3 style="margin-top: 0; color: #1e40af; text-align: center;">New Appointment Time</h3>
           <p><strong>New Date:</strong> ${formattedNewDate}</p>
           <p><strong>New Time:</strong> ${formattedNewTime}</p>
         </div>
@@ -907,8 +917,8 @@ export class ZoneMeetEmailService {
           <p>Your appointment with <strong>${booking.providerName}</strong> has been rescheduled.</p>
           
           <div style="background-color: #fef3c7; border: 1px solid #fbbf24; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #92400e;">Original Appointment Details</h3>
-            <p><strong>Service:</strong> ${booking.serviceType}</p>
+            <h3 style="margin-top: 0; color: #92400e; text-align: center;">Original Appointment Details</h3>
+            <p><strong>Service:</strong> ${this.capitalizeServiceType(booking.serviceType)}</p>
             <p><strong>Original Date:</strong> ${originalDate}</p>
             <p><strong>Original Time:</strong> ${originalTime}</p>
             <p><strong>Duration:</strong> ${booking.duration} minutes</p>

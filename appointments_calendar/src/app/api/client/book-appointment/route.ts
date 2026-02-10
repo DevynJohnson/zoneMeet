@@ -61,17 +61,47 @@ export async function POST(request: NextRequest) {
     // Use the default calendar email if available, otherwise use provider signup email
     const providerNotificationEmail = provider.calendarConnections[0]?.email || provider.email;
 
-    // Fetch provider timezone early - needed for both manual and automatic bookings (for email formatting)
+    // Fetch provider location early - needed for both manual and automatic bookings (for email formatting and location info)
     const providerLocation = await prisma.providerLocation.findFirst({
       where: { 
         providerId: providerId,
         isDefault: true 
       },
-      select: { timezone: true }
+      select: { 
+        timezone: true,
+        city: true,
+        stateProvince: true,
+        country: true,
+        description: true,
+        addressLine1: true,
+        addressLine2: true
+      }
     });
     
     const providerTimezone = providerLocation?.timezone || 'America/New_York';
     console.log('Provider timezone:', providerTimezone);
+    
+    // Format location display string
+    const formatLocation = () => {
+      if (!providerLocation) return 'To be confirmed';
+      
+      // If there's a custom description, use it
+      if (providerLocation.description) {
+        return providerLocation.description;
+      }
+      
+      // Otherwise, build from address components
+      const parts = [];
+      if (providerLocation.addressLine1) parts.push(providerLocation.addressLine1);
+      if (providerLocation.addressLine2) parts.push(providerLocation.addressLine2);
+      if (providerLocation.city) parts.push(providerLocation.city);
+      if (providerLocation.stateProvince) parts.push(providerLocation.stateProvince);
+      if (providerLocation.country) parts.push(providerLocation.country);
+      
+      return parts.length > 0 ? parts.join(', ') : 'To be confirmed';
+    };
+    
+    const locationDisplay = formatLocation();
 
     let calendarEvent = null;
 
@@ -200,7 +230,7 @@ export async function POST(request: NextRequest) {
       calendarEvent = {
         id: 'auto-' + Date.now(), // Virtual ID
         title: 'Available Time Slot',
-        location: 'To be confirmed',
+        location: locationDisplay, // Use provider's actual location
         providerId: providerId,
         startTime: appointmentStart,
         endTime: appointmentEnd,
@@ -272,21 +302,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create or find the customer
-    let user = await prisma.user.findUnique({
-      where: { email: customer.email }
+    // Create or update the customer (upsert to always use latest information)
+    const user = await prisma.user.upsert({
+      where: { email: customer.email },
+      update: {
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phone: customer.phone,
+      },
+      create: {
+        email: customer.email,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        phone: customer.phone,
+      }
     });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: customer.email,
-          firstName: customer.firstName,
-          lastName: customer.lastName,
-          phone: customer.phone,
-        }
-      });
-    }
 
     // Create the booking
     const booking = await prisma.booking.create({
