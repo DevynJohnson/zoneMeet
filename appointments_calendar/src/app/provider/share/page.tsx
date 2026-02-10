@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Provider {
   id: string;
@@ -11,32 +12,39 @@ interface Provider {
 }
 
 export default function ProviderDashboard() {
+  const router = useRouter();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // For demo purposes, using hardcoded provider ID
-  // In production, this would come from authentication
-  const providerId = 'cmek2qbli0000zy18bh84zbwm';
 
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const response = await fetch(`/api/client/search-providers?q=${providerId}`);
-        const data = await response.json();
-        
-        if (data.success && data.providers.length > 0) {
-          const matchedProvider = data.providers.find((p: Provider) => p.id === providerId) || data.providers[0];
-          setProvider(matchedProvider);
+        const token = localStorage.getItem('providerToken');
+        if (!token) {
+          router.push('/login');
+          return;
         }
+
+        const response = await fetch('/api/provider/auth/verify', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load provider data');
+        }
+
+        const data = await response.json();
+        setProvider(data.provider);
       } catch (error) {
         console.error('Error fetching provider:', error);
+        router.push('/login');
       } finally {
         setLoading(false);
       }
     };
 
     fetchProvider();
-  }, [providerId]);
+  }, [router]);
 
   const generateBookingLinks = () => {
     if (!provider) return { direct: '', landing: '' };
