@@ -68,6 +68,14 @@ export async function GET(request: NextRequest) {
     );
     
     if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.text();
+      console.error('❌ Microsoft token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: errorData,
+        clientId: platform === 'teams' ? process.env.TEAMS_CLIENT_ID : process.env.OUTLOOK_CLIENT_ID,
+        redirectUri: platform === 'teams' ? process.env.TEAMS_REDIRECT_URI : process.env.OUTLOOK_REDIRECT_URI,
+      });
       return NextResponse.redirect(
         new URL('/provider/calendar/connect?error=token_exchange_failed', baseUrl)
       );
