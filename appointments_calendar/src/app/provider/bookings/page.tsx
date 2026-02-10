@@ -85,7 +85,9 @@ function ProviderBookingsContent() {
     try {
       const token = localStorage.getItem('providerToken');
       if (!token) {
-        router.push('/login');
+        // Store the current URL to return to after login
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login?returnTo=${encodeURIComponent(currentPath)}`);
         return;
       }
 

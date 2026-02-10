@@ -1,17 +1,34 @@
 // Provider login page
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 
 export default function ProviderLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-800">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
 
   // Handle autofill detection - helps with browser password managers
   useEffect(() => {
@@ -89,8 +106,9 @@ export default function ProviderLoginPage() {
       localStorage.setItem('providerToken', data.accessToken); // Backward compatibility
       localStorage.setItem('currentProviderEmail', email);
       
-      // Redirect to dashboard
-      router.push('/provider/dashboard');
+      // Redirect to returnTo URL if provided, otherwise dashboard
+      const redirectUrl = returnTo && returnTo.startsWith('/') ? returnTo : '/provider/dashboard';
+      router.push(redirectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
