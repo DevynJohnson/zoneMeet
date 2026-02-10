@@ -422,7 +422,7 @@ export class CalendarConnectionService {
       `client_id=${process.env.OUTLOOK_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(process.env.OUTLOOK_REDIRECT_URI!)}&` +
-      `scope=${encodeURIComponent('https://graph.microsoft.com/calendars.read')}&` +
+      `scope=${encodeURIComponent('https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access')}&` +
       `state=${outlookStateParam}&` +
       `response_mode=query`;
 
