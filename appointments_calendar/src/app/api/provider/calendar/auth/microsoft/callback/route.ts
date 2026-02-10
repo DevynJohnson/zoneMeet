@@ -159,7 +159,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-  } catch {
+  } catch (error) {
+    console.error('❌ Microsoft OAuth callback failed:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
     return NextResponse.redirect(
       new URL('/provider/calendar/connect?error=callback_failed', baseUrl)
     );

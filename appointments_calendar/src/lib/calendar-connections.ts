@@ -369,6 +369,12 @@ export class CalendarConnectionService {
       return connection;
     } catch (error) {
       console.error('Failed to create calendar connection:', error);
+      
+      // Check for unique constraint violation
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        throw new Error('This calendar is already connected to your account');
+      }
+      
       throw new Error('Failed to create calendar connection');
     }
   }
@@ -381,15 +387,17 @@ export class CalendarConnectionService {
       `client_id=${process.env.OUTLOOK_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(process.env.OUTLOOK_REDIRECT_URI!)}&` +
-      `scope=${encodeURIComponent('https://graph.microsoft.com/calendars.read')}&` +
-      `response_mode=query`;
+      `scope=${encodeURIComponent('https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access')}&` +
+      `response_mode=query&` +
+      `prompt=select_account`;
 
     const teamsAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
       `client_id=${process.env.TEAMS_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(process.env.TEAMS_REDIRECT_URI!)}&` +
-      `scope=${encodeURIComponent('https://graph.microsoft.com/calendars.read https://graph.microsoft.com/onlineMeetings.read')}&` +
-      `response_mode=query`;
+      `scope=${encodeURIComponent('https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access')}&` +
+      `response_mode=query&` +
+      `prompt=select_account`;
 
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
@@ -424,15 +432,17 @@ export class CalendarConnectionService {
       `redirect_uri=${encodeURIComponent(process.env.OUTLOOK_REDIRECT_URI!)}&` +
       `scope=${encodeURIComponent('https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access')}&` +
       `state=${outlookStateParam}&` +
-      `response_mode=query`;
+      `response_mode=query&` +
+      `prompt=select_account`;
 
     const teamsAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
       `client_id=${process.env.TEAMS_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(process.env.TEAMS_REDIRECT_URI!)}&` +
-      `scope=${encodeURIComponent('https://graph.microsoft.com/calendars.read https://graph.microsoft.com/onlineMeetings.read')}&` +
+      `scope=${encodeURIComponent('https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read offline_access')}&` +
       `state=${teamsStateParam}&` +
-      `response_mode=query`;
+      `response_mode=query&` +
+      `prompt=select_account`;
 
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
@@ -441,7 +451,7 @@ export class CalendarConnectionService {
       `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly')}&` +
       `state=${googleStateParam}&` +
       `access_type=offline&` +
-      `prompt=consent`;
+      `prompt=select_account`;
 
     return {
       outlook: outlookAuthUrl,
