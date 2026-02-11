@@ -80,7 +80,7 @@ export default function PrivacyPolicy() {
                 We may share information with trusted third-party service providers who assist us in operating our Service:
               </p>
               <ul className="list-disc list-inside text-gray-700 mb-4 space-y-1">
-                <li>Cloud hosting and database services (Supabase, Vercel)</li>
+                <li>Cloud hosting and database services (Supabase, Render)</li>
                 <li>Calendar platform APIs (Google Calendar, Microsoft Outlook, Apple Calendar)</li>
                 <li>Authentication and security services</li>
                 <li>Analytics and performance monitoring tools</li>
@@ -131,7 +131,6 @@ export default function PrivacyPolicy() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">Access and Portability</h3>
               <ul className="list-disc list-inside text-gray-700 mb-4 space-y-1">
                 <li>Request access to your personal data</li>
-                <li>Export your calendar data in standard formats</li>
                 <li>Receive a copy of your information in a portable format</li>
               </ul>
 
