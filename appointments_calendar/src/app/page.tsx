@@ -15,7 +15,7 @@ export default function Home() {
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl">
               Book appointments with providers based on their location and availability. 
-              Seamlessly sync with Outlook, Google Calendar, Teams, and Apple calendars.
+              Seamlessly sync with Outlook, Microsoft Teams, Google and Apple calendars.
             </p>
           </div>
 
