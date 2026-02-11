@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { secureFetch } from '@/lib/csrf';
 import LocationSchedules from '@/components/LocationSchedules';
@@ -46,6 +46,14 @@ export default function ManageLocationPage() {
   const [locationSchedules, setLocationSchedules] = useState<{[key: string]: LocationSchedule[]}>({});
 
   const router = useRouter();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to form when it opens
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showForm]);
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -476,7 +484,7 @@ export default function ManageLocationPage() {
           )}
 
           {showForm && (
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
+            <div ref={formRef} className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 {editingId ? 'Edit Location' : 'Add New Location'}
               </h2>

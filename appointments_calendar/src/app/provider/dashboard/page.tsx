@@ -525,10 +525,10 @@ export default function ProviderDashboard() {
                 {/* Current Default Display */}
                 {defaultCalendar.currentDefault && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-block w-2 h-2 rounded-full bg-green-400"></span>
-                      <span className="text-sm font-medium text-green-800">Current Default:</span>
-                      <span className="text-sm text-green-700">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+                      <span className="text-sm font-medium text-green-800 flex-shrink-0">Current Default:</span>
+                      <span className="text-sm text-green-700 break-all">
                         {defaultCalendar.currentDefault.platform} ({defaultCalendar.currentDefault.email})
                       </span>
                     </div>
@@ -628,16 +628,16 @@ export default function ProviderDashboard() {
                   {connections.map((connection) => (
                     <div
                       key={connection.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-start justify-between p-3 border rounded-lg gap-3"
                     >
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-block w-2 h-2 rounded-full ${
+                          <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
                             connection.isActive ? 'bg-green-400' : 'bg-red-400'
                           }`}></span>
                           <span className="font-medium text-gray-900">{connection.platform}</span>
                         </div>
-                        <p className="text-sm text-gray-600">{connection.email}</p>
+                        <p className="text-sm text-gray-600 break-all">{connection.email}</p>
                         <div className="flex gap-2 mt-1">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             connection.syncEvents ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
@@ -651,10 +651,10 @@ export default function ProviderDashboard() {
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-shrink-0">
                         <button
                           onClick={() => router.push(`/provider/calendar/manage/${connection.id}`)}
-                          className="text-sm text-blue-600 hover:text-blue-800"
+                          className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
                         >
                           Manage
                         </button>

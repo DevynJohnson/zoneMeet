@@ -244,11 +244,11 @@ export default function CalendarConnectPage() {
                     <div className="mb-3 space-y-2">
                       {getConnectionsForPlatform('outlook').map((connection) => (
                         <div key={connection.id} className="border border-green-200 bg-green-50 rounded p-2">
-                          <div className="text-sm text-green-600 flex items-center mb-1">
-                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="text-sm text-green-600 flex items-start mb-2">
+                            <svg className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
-                            Connected: {connection.email}
+                            <span className="break-all">Connected: {connection.email}</span>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -304,11 +304,11 @@ export default function CalendarConnectPage() {
                     <div className="mb-3 space-y-2">
                       {getConnectionsForPlatform('teams').map((connection) => (
                         <div key={connection.id} className="border border-green-200 bg-green-50 rounded p-2">
-                          <div className="text-sm text-green-600 flex items-center mb-1">
-                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="text-sm text-green-600 flex items-start mb-2">
+                            <svg className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
-                            Connected: {connection.email}
+                            <span className="break-all">Connected: {connection.email}</span>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -364,11 +364,11 @@ export default function CalendarConnectPage() {
                     <div className="mb-3 space-y-2">
                       {getConnectionsForPlatform('google').map((connection) => (
                         <div key={connection.id} className="border border-green-200 bg-green-50 rounded p-2">
-                          <div className="text-sm text-green-600 flex items-center mb-1">
-                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="text-sm text-green-600 flex items-start mb-2">
+                            <svg className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
-                            Connected: {connection.email}
+                            <span className="break-all">Connected: {connection.email}</span>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -424,11 +424,11 @@ export default function CalendarConnectPage() {
                     <div className="mb-3 space-y-2">
                       {getConnectionsForPlatform('apple').map((connection) => (
                         <div key={connection.id} className="border border-green-200 bg-green-50 rounded p-2">
-                          <div className="text-sm text-green-600 flex items-center mb-1">
-                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <div className="text-sm text-green-600 flex items-start mb-2">
+                            <svg className="w-4 h-4 mr-1 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
-                            Connected: {connection.email}
+                            <span className="break-all">Connected: {connection.email}</span>
                           </div>
                           <button
                             onClick={() => router.push(`/provider/calendar/manage/${connection.id}`)}
@@ -513,7 +513,7 @@ export default function CalendarConnectPage() {
               <ol className="list-decimal list-inside mt-1 ml-4 space-y-1">
                 <li>Go to <a href="https://appleid.apple.com" target="_blank" rel="noopener noreferrer" className="underline">appleid.apple.com</a></li>
                 <li>Sign in and go to &quot;Sign-In and Security&quot; → &quot;App-Specific Passwords&quot;</li>
-                <li>Generate a new password with a label like &quot;Calendar App&quot;</li>
+                <li>Generate a new password with a label like &quot;Zone-Meet&quot;</li>
                 <li>Use your Apple ID email and the generated password above</li>
               </ol>
             </div>
