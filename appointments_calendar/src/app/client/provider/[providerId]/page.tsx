@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface Provider {
   id: string;
@@ -16,6 +17,7 @@ interface Provider {
 
 export default function ProviderBookingPage() {
   const params = useParams();
+  const { showSuccess } = useAlert();
   const providerId = params.providerId as string;
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export default function ProviderBookingPage() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
-      alert('Booking link copied to clipboard!');
+      showSuccess('Booking link copied to clipboard!');
     }).catch(() => {
       prompt('Copy this booking link:', window.location.href);
     });

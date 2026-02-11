@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { secureFetch } from '@/lib/csrf';
 import { format, addDays } from 'date-fns';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface Customer {
   firstName: string | null;
@@ -63,6 +64,7 @@ export default function ProviderBookings() {
 }
 
 function ProviderBookingsContent() {
+  const { showConfirm } = useAlert();
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('highlight');
   const action = searchParams.get('action');
@@ -218,33 +220,35 @@ function ProviderBookingsContent() {
   };
 
   const handleDelete = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      return;
-    }
+    showConfirm(
+      'Are you sure you want to delete this booking? This action cannot be undone.',
+      async () => {
+        setActionLoading(bookingId);
+        try {
+          const token = localStorage.getItem('providerToken');
+          const response = await secureFetch(`/api/provider/bookings/${bookingId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-    setActionLoading(bookingId);
-    try {
-      const token = localStorage.getItem('providerToken');
-      const response = await secureFetch(`/api/provider/bookings/${bookingId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to delete booking');
+          }
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete booking');
-      }
-
-      // Reload bookings to reflect changes
-      await loadBookings();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete booking');
-    } finally {
-      setActionLoading(null);
-    }
+          // Reload bookings to reflect changes
+          await loadBookings();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete booking');
+        } finally {
+          setActionLoading(null);
+        }
+      },
+      'Delete Booking'
+    );
   };
 
   const handleClearAll = async () => {

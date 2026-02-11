@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, Calendar, Clock, Settings, Trash2, Edit } from "lucide-react";
 import { secureFetch } from "@/lib/csrf";
+import { useAlert } from "@/contexts/AlertContext";
 
 interface ScheduleFormData {
   name: string;
@@ -64,6 +65,7 @@ export default function AdvancedAvailabilityEditor({
   templateId,
   onScheduleChange,
 }: AdvancedAvailabilityEditorProps) {
+  const { showError, showConfirm } = useAlert();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -134,23 +136,27 @@ export default function AdvancedAvailabilityEditor({
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
-    if (!confirm("Are you sure you want to delete this schedule?")) return;
+    showConfirm(
+      "Are you sure you want to delete this schedule?",
+      async () => {
+        try {
+          const response = await secureFetch(
+            `/api/provider/advanced-availability/${scheduleId}`,
+            {
+              method: "DELETE",
+            }
+          );
+          if (!response.ok) throw new Error("Failed to delete schedule");
 
-    try {
-      const response = await secureFetch(
-        `/api/provider/advanced-availability/${scheduleId}`,
-        {
-          method: "DELETE",
+          await loadSchedules();
+          onScheduleChange?.();
+        } catch (error) {
+          console.error("Failed to delete schedule:", error);
+          showError("Failed to delete schedule");
         }
-      );
-      if (!response.ok) throw new Error("Failed to delete schedule");
-
-      await loadSchedules();
-      onScheduleChange?.();
-    } catch (error) {
-      console.error("Failed to delete schedule:", error);
-      alert("Failed to delete schedule");
-    }
+      },
+      "Delete Schedule"
+    );
   };
 
   const handleToggleActive = async (scheduleId: string, currentStatus: boolean) => {
@@ -176,7 +182,7 @@ export default function AdvancedAvailabilityEditor({
       onScheduleChange?.();
     } catch (error) {
       console.error("Failed to toggle schedule status:", error);
-      alert("Failed to update schedule status");
+      showError("Failed to update schedule status");
     }
   };
 
@@ -470,6 +476,7 @@ export default function AdvancedAvailabilityEditor({
             setShowCreateModal(false);
             setEditingSchedule(null);
           }}
+          showError={showError}
         />
       )}
     </div>
@@ -482,6 +489,7 @@ interface ScheduleModalProps {
   schedule: Schedule | null;
   onClose: () => void;
   onSave: () => void;
+  showError: (message: string) => void;
 }
 
 function ScheduleModal({
@@ -489,6 +497,7 @@ function ScheduleModal({
   schedule,
   onClose,
   onSave,
+  showError,
 }: ScheduleModalProps) {
   const [formData, setFormData] = useState<Partial<ScheduleFormData>>(() => {
     if (schedule) {
@@ -797,7 +806,7 @@ function ScheduleModal({
       onSave();
     } catch (error) {
       console.error("Failed to save schedule:", error);
-      alert("Failed to save schedule");
+      showError("Failed to save schedule");
     } finally {
       setIsSubmitting(false);
     }

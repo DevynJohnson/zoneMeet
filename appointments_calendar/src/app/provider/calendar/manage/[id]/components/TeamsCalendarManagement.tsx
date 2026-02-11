@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { secureFetch } from '@/lib/csrf';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface CalendarConnection {
   id: string;
@@ -36,6 +37,7 @@ interface TeamsCalendarManagementProps {
 }
 
 export default function TeamsCalendarManagement({ connection, onConnectionUpdate }: TeamsCalendarManagementProps) {
+  const { showSuccess, showError } = useAlert();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -88,7 +90,7 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
         throw new Error(errorData.error || 'Failed to save settings');
       }
 
-      alert('Teams Calendar settings saved successfully!');
+      showSuccess('Teams Calendar settings saved successfully!');
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
@@ -132,7 +134,7 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
         await loadData();
       }
       
-      alert('Teams Calendar synced successfully!');
+      showSuccess('Teams Calendar synced successfully!');
     } catch (err) {
       console.error('❌ Teams sync error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sync Teams Calendar');

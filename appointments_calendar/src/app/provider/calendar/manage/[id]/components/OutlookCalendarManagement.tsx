@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { secureFetch } from '@/lib/csrf';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface CalendarConnection {
   id: string;
@@ -48,6 +49,7 @@ interface OutlookCalendarManagementProps {
 }
 
 export default function OutlookCalendarManagement({ connection, onConnectionUpdate }: OutlookCalendarManagementProps) {
+  const { showSuccess, showError } = useAlert();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -155,7 +157,7 @@ export default function OutlookCalendarManagement({ connection, onConnectionUpda
         throw new Error(errorData.error || 'Failed to save settings');
       }
 
-      alert('Outlook Calendar settings saved successfully!');
+      showSuccess('Outlook Calendar settings saved successfully!');
       await loadData(); // Reload to get updated data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
@@ -199,7 +201,7 @@ export default function OutlookCalendarManagement({ connection, onConnectionUpda
         await loadData();
       }
       
-      alert('Outlook Calendar synced successfully!');
+      showSuccess('Outlook Calendar synced successfully!');
     } catch (err) {
       console.error('❌ Outlook sync error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sync Outlook Calendar');

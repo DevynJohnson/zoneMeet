@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { secureFetch } from '@/lib/csrf';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface CalendarConnection {
   id: string;
@@ -46,6 +47,7 @@ interface AppleCalendarManagementProps {
 }
 
 export default function AppleCalendarManagement({ connection, onConnectionUpdate }: AppleCalendarManagementProps) {
+  const { showSuccess, showError } = useAlert();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -195,7 +197,7 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
       }
 
       setError(null);
-      alert('Apple Calendar settings saved successfully!');
+      showSuccess('Apple Calendar settings saved successfully!');
       
       // Clear password field after successful save
       setAppPassword('');
@@ -248,7 +250,7 @@ export default function AppleCalendarManagement({ connection, onConnectionUpdate
         await loadData();
       }
       
-      alert('Apple Calendar synced successfully!');
+      showSuccess('Apple Calendar synced successfully!');
     } catch (err) {
       console.error('❌ Apple sync error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sync Apple Calendar');

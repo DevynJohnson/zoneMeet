@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface Provider {
   id: string;
@@ -13,6 +14,7 @@ interface Provider {
 
 export default function ProviderDashboard() {
   const router = useRouter();
+  const { showSuccess, showError } = useAlert();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +60,7 @@ export default function ProviderDashboard() {
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      alert(`${type} link copied to clipboard!`);
+      showSuccess(`${type} link copied to clipboard!`);
     }).catch(() => {
       prompt(`Copy this ${type.toLowerCase()} link:`, text);
     });

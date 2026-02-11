@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { secureFetch } from '@/lib/csrf';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface AuthUrls {
   outlook: string;
@@ -29,6 +30,7 @@ interface CalendarConnection {
 }
 
 export default function CalendarConnectPage() {
+  const { showSuccess, showConfirm } = useAlert();
   const [authUrls, setAuthUrls] = useState<AuthUrls | null>(null);
   const [connections, setConnections] = useState<CalendarConnection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,28 +136,30 @@ export default function CalendarConnectPage() {
   };
 
   const handleDisconnectCalendar = async (connectionId: string, platform: string) => {
-    if (!confirm(`Are you sure you want to disconnect your ${platform} calendar? This will remove all synced events and cannot be undone.`)) {
-      return;
-    }
+    showConfirm(
+      `Are you sure you want to disconnect your ${platform} calendar? This will remove all synced events and cannot be undone.`,
+      async () => {
+        try {
+          const token = localStorage.getItem('providerToken');
+          const response = await secureFetch(`/api/provider/calendar/connections/${connectionId}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-    try {
-      const token = localStorage.getItem('providerToken');
-      const response = await secureFetch(`/api/provider/calendar/connections/${connectionId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+          if (!response.ok) {
+            throw new Error('Failed to disconnect calendar');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to disconnect calendar');
-      }
-
-      await loadData();
-      alert(`${platform} calendar disconnected successfully`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disconnect calendar');
-    }
+          await loadData();
+          showSuccess(`${platform} calendar disconnected successfully`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to disconnect calendar');
+        }
+      },
+      'Disconnect Calendar'
+    );
   };
 
   const platformIcons = {

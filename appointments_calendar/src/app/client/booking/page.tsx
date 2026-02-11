@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { secureFetch } from '@/lib/csrf';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface AvailabilityDay {
   date: string;
@@ -58,6 +59,7 @@ export default function ClientBooking() {
 }
 
 function ClientBookingContent() {
+  const { showSuccess, showError } = useAlert();
   const searchParams = useSearchParams();
   const urlProviderId = searchParams.get('providerId');
   
@@ -295,7 +297,7 @@ function ClientBookingContent() {
     const data = await response.json();
     
     if (data.success) {
-      alert(data.message || 'Booking request submitted! Please check your email for a confirmation link.');
+      showSuccess(data.message || 'Booking request submitted! Please check your email for a confirmation link.');
       
       // Save form data (except notes) to localStorage for future bookings
       const dataToSave = {
@@ -311,11 +313,11 @@ function ClientBookingContent() {
       });
       fetchAvailabilityPreview();
     } else {
-      alert(`Booking failed: ${data.error}`);
+      showError(`Booking failed: ${data.error}`);
     }
   } catch (error) {
     console.error('Booking error:', error);
-    alert('Failed to book appointment. Please try again.');
+    showError('Failed to book appointment. Please try again.');
   } finally {
     setIsBooking(false);
   }
@@ -324,7 +326,7 @@ function ClientBookingContent() {
   const copyBookingLink = () => {
     const currentUrl = window.location.href;
     navigator.clipboard.writeText(currentUrl).then(() => {
-      alert('Booking link copied to clipboard!');
+      showSuccess('Booking link copied to clipboard!');
     }).catch(() => {
       prompt('Copy this booking link:', currentUrl);
     });

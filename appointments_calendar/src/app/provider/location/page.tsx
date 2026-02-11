@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { secureFetch } from '@/lib/csrf';
 import LocationSchedules from '@/components/LocationSchedules';
 import { ProviderLocation, LocationSchedule } from '@/types/location';
+import { useAlert } from '@/contexts/AlertContext';
 
 interface LocationFormData {
   addressLine1?: string;
@@ -21,6 +22,7 @@ interface LocationFormData {
 }
 
 export default function ManageLocationPage() {
+  const { showConfirm } = useAlert();
   const [locations, setLocations] = useState<ProviderLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,33 +297,35 @@ export default function ManageLocationPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this location?')) {
-      return;
-    }
+    showConfirm(
+      'Are you sure you want to delete this location?',
+      async () => {
+        try {
+          const token = localStorage.getItem('providerToken');
+          if (!token) {
+            router.push('/login');
+            return;
+          }
 
-    try {
-      const token = localStorage.getItem('providerToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
+          const response = await secureFetch(`/api/provider/location/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
 
-      const response = await secureFetch(`/api/provider/location/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+          if (!response.ok) {
+            throw new Error('Failed to delete location');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete location');
-      }
-
-      await fetchLocations();
-    } catch (error) {
-      console.error('Error deleting location:', error);
-      setError('Failed to delete location');
-    }
+          await fetchLocations();
+        } catch (error) {
+          console.error('Error deleting location:', error);
+          setError('Failed to delete location');
+        }
+      },
+      'Delete Location'
+    );
   };
 
   const handleSetDefault = async (id: string) => {
