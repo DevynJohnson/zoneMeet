@@ -349,10 +349,6 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
                     <dd className="text-sm text-gray-900">{connection.email}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Calendar ID</dt>
-                    <dd className="text-sm text-gray-900 break-all font-mono">{connection.calendarId}</dd>
-                  </div>
-                  <div>
                     <dt className="text-sm font-medium text-gray-500">Status</dt>
                     <dd className="text-sm">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -365,31 +361,9 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Sync Method</dt>
-                    <dd className="text-sm">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        On-Demand
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Teams Integration</dt>
-                    <dd className="text-sm">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        Enhanced
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
                     <dt className="text-sm font-medium text-gray-500">Last Sync</dt>
                     <dd className="text-sm text-gray-900">
                       {connection.lastSyncAt ? formatDate(connection.lastSyncAt) : 'Never'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Sync Frequency</dt>
-                    <dd className="text-sm text-gray-900">
-                      {formatSyncFrequency(connection.syncFrequency || 15)}
                     </dd>
                   </div>
                   <div>
