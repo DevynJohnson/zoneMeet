@@ -176,7 +176,23 @@ function RescheduleContent() {
       <>
         <Nav type="public" />
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md p-6 bg-white rounded-lg shadow">
+          <div className="max-w-md p-6 bg-white rounded-lg shadow relative">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                window.close();
+                setTimeout(() => {
+                  window.location.href = '/';
+                }, 100);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
             <div className="text-center">
               <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-green-100 mb-4">
                 <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,7 +224,23 @@ function RescheduleContent() {
       <Nav type="public" />
       <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg p-6 relative">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                window.close();
+                setTimeout(() => {
+                  window.location.href = '/';
+                }, 100);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Reschedule Appointment</h1>
 
             {/* Current Booking Details */}
@@ -289,7 +321,14 @@ function RescheduleContent() {
             {selectedDate && selectedSlot && (
               <div className="flex justify-end space-x-4">
                 <button
-                  onClick={() => window.history.back()}
+                  onClick={() => {
+                    // Try to close the window (works if opened from email link)
+                    // If that fails, redirect to home page
+                    window.close();
+                    setTimeout(() => {
+                      window.location.href = '/';
+                    }, 100);
+                  }}
                   className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
