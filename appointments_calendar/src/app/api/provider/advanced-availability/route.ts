@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Template ID is required' }, { status: 400 });
     }
 
-    const schedules = await AdvancedAvailabilityService.getSchedulesForTemplate(templateId);
+    // Get all schedules including inactive ones for UI display
+    const schedules = await AdvancedAvailabilityService.getSchedulesForTemplate(templateId, false);
     return NextResponse.json(schedules);
   } catch (error) {
     console.error('Error fetching advanced availability schedules:', error);

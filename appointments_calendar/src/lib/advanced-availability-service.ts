@@ -63,11 +63,11 @@ export class AdvancedAvailabilityService {
   /**
    * Get all schedules for a template, ordered by priority
    */
-  static async getSchedulesForTemplate(templateId: string) {
+  static async getSchedulesForTemplate(templateId: string, activeOnly: boolean = true) {
     return await prisma.availabilitySchedule.findMany({
       where: { 
         templateId,
-        isActive: true 
+        ...(activeOnly && { isActive: true })
       },
       include: {
         timeSlots: {
@@ -406,7 +406,7 @@ export class AdvancedAvailabilityService {
   /**
    * Update a schedule
    */
-  static async updateSchedule(scheduleId: string, scheduleData: Partial<AvailabilityScheduleInput>) {
+  static async updateSchedule(scheduleId: string, scheduleData: Partial<AvailabilityScheduleInput> & { isActive?: boolean }) {
     const { timeSlots, ...scheduleFields } = scheduleData;
 
     const result = await prisma.availabilitySchedule.update({
@@ -432,6 +432,19 @@ export class AdvancedAvailabilityService {
     });
 
     return result;
+  }
+
+  /**
+   * Toggle the active status of a schedule
+   */
+  static async toggleScheduleActive(scheduleId: string, isActive: boolean) {
+    return await prisma.availabilitySchedule.update({
+      where: { id: scheduleId },
+      data: { isActive },
+      include: {
+        timeSlots: true,
+      }
+    });
   }
 
   /**

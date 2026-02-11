@@ -20,6 +20,32 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const partialData = await request.json();
+    
+    // If we're just toggling the active status, use the dedicated method
+    if ('isActive' in partialData && Object.keys(partialData).length === 1) {
+      const schedule = await AdvancedAvailabilityService.toggleScheduleActive(id, partialData.isActive);
+      return NextResponse.json(schedule);
+    }
+    
+    // Otherwise use the general update method
+    const schedule = await AdvancedAvailabilityService.updateSchedule(id, partialData);
+    return NextResponse.json(schedule);
+  } catch (error) {
+    console.error('Error patching advanced availability schedule:', error);
+    return NextResponse.json(
+      { error: 'Failed to update schedule' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

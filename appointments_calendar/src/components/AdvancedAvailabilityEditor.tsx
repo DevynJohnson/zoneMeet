@@ -153,6 +153,33 @@ export default function AdvancedAvailabilityEditor({
     }
   };
 
+  const handleToggleActive = async (scheduleId: string, currentStatus: boolean) => {
+    try {
+      const token = localStorage.getItem('providerToken');
+      const response = await secureFetch(
+        `/api/provider/advanced-availability/${scheduleId}`,
+        {
+          method: "PATCH",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ isActive: !currentStatus }),
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error("Failed to update schedule status");
+      }
+
+      await loadSchedules();
+      onScheduleChange?.();
+    } catch (error) {
+      console.error("Failed to toggle schedule status:", error);
+      alert("Failed to update schedule status");
+    }
+  };
+
   const formatRecurrence = (schedule: Schedule) => {
     if (!schedule.isRecurring) return "One-time";
 
@@ -319,6 +346,7 @@ export default function AdvancedAvailabilityEditor({
           <li>
             Multiple schedules can overlap - newer schedules take precedence
           </li>
+          <li>Use the toggle button to activate or deactivate schedules</li>
         </ul>
       </div>
 
@@ -353,11 +381,20 @@ export default function AdvancedAvailabilityEditor({
                     <h4 className="font-medium text-gray-900">
                       {schedule.name}
                     </h4>
-                    {!schedule.isActive && (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full text-gray-500 bg-gray-100">
-                        Inactive
-                      </span>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleActive(schedule.id, schedule.isActive);
+                      }}
+                      className={`px-2 py-1 text-xs font-medium rounded-full transition-colors ${
+                        schedule.isActive
+                          ? 'text-green-700 bg-green-100 hover:bg-green-200'
+                          : 'text-gray-500 bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      title={schedule.isActive ? 'Click to deactivate' : 'Click to activate'}
+                    >
+                      {schedule.isActive ? '✓ Active' : 'Inactive'}
+                    </button>
                   </div>
 
                   <div className="space-y-2 text-sm text-gray-600">
@@ -384,20 +421,32 @@ export default function AdvancedAvailabilityEditor({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 ml-4">
+                <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
                   <button
                     onClick={() => handleEditSchedule(schedule)}
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      handleEditSchedule(schedule);
+                    }}
+                    className="p-3 text-gray-400 hover:text-blue-600 active:text-blue-700 transition-colors touch-manipulation"
                     title="Edit schedule"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => handleDeleteSchedule(schedule.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSchedule(schedule.id);
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteSchedule(schedule.id);
+                    }}
+                    className="p-3 text-gray-400 hover:text-red-600 active:text-red-700 transition-colors touch-manipulation"
                     title="Delete schedule"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -521,23 +570,21 @@ function ScheduleModal({
         patterns.push(weekPattern);
       }
     } else {
-      // Default to 2 weeks for new schedules
-      for (let week = 0; week < 2; week++) {
-        const weekPattern: WeeklyPattern = {
-          weekNumber: week + 1,
-          days: {},
+      // Default to 1 week for new schedules
+      const weekPattern: WeeklyPattern = {
+        weekNumber: 1,
+        days: {},
+      };
+
+      for (let day = 0; day < 7; day++) {
+        weekPattern.days[day] = {
+          enabled: false,
+          startTime: "09:00",
+          endTime: "17:00",
         };
-
-        for (let day = 0; day < 7; day++) {
-          weekPattern.days[day] = {
-            enabled: false,
-            startTime: "09:00",
-            endTime: "17:00",
-          };
-        }
-
-        patterns.push(weekPattern);
       }
+
+      patterns.push(weekPattern);
     }
 
     return patterns;
