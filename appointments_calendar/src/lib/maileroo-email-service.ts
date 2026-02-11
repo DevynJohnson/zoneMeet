@@ -65,7 +65,7 @@ export class ZoneMeetEmailService {
    */
   private getBrandedHeader(): string {
     // Use the live Zone Meet domain with Next.js optimized image
-    const logoUrl = 'https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo.png&w=256&q=75';
+    const logoUrl = 'https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo_v3.png&w=256&q=75';
     
     return `
       <div style="text-align: center; margin-bottom: 30px; padding: 20px; background-color: #f8fafc; border-radius: 8px;">

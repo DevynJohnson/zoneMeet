@@ -138,7 +138,7 @@ async function handleCancelBooking(
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 50px auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo.png&w=256&q=75" 
+              <img src="https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo_v3.png&w=256&q=75" 
                    alt="Zone Meet Logo" 
                    style="max-width: 200px; height: auto; margin-bottom: 10px;">
               <h1 style="color: #2563eb; margin: 0;">Zone Meet</h1>
@@ -215,7 +215,7 @@ async function handleCancelBooking(
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 50px auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <img src="https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo.png&w=256&q=75" 
+              <img src="https://www.zone-meet.com/_next/image?url=%2FZoneMeet_Logo_v3.png&w=256&q=75" 
                    alt="Zone Meet Logo" 
                    style="max-width: 200px; height: auto; margin-bottom: 10px;">
               <h1 style="color: #2563eb; margin: 0;">Zone Meet</h1>
