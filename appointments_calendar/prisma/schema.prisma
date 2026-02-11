@@ -105,7 +105,7 @@ model ProviderLocation {
   providerId     String
   city           String
   stateProvince  String
-  postalCode     String?
+  postalCode     String?            @map("postalCode")
   country        String
   description    String?
   startDate      DateTime

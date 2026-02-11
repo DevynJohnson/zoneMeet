@@ -189,15 +189,15 @@ export default function Nav({ type = 'public' }: NavProps) {
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 py-3">
+        <div className="flex items-center justify-between h-32 py-4">
           {/* Logo/Brand - Far Left */}
           <div className="flex-shrink-0">
             <Link href={type === 'provider' ? '/' : '/'} className="flex items-center">
               <Image 
-                src="/ZoneMeet_Logo.png" 
+                src="/ZoneMeet_Logo_v3.png" 
                 alt="Zone Meet Logo" 
-                width={120} 
-                height={120} 
+                width={140} 
+                height={140} 
                 className="hover:opacity-80 transition-opacity"
               />
             </Link>
@@ -209,7 +209,7 @@ export default function Nav({ type = 'public' }: NavProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-2 lg:px-3 py-2 rounded-md text-sm lg:text-base font-medium transition-colors ${
+                className={`px-2 lg:px-3 py-2 rounded-md text-base lg:text-lg font-medium transition-colors ${
                   isActive(item.href)
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
@@ -228,13 +228,13 @@ export default function Nav({ type = 'public' }: NavProps) {
               <>
                 <Link
                   href="/provider/settings"
-                  className="bg-gray-100 text-gray-700 px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-gray-200 transition-colors whitespace-nowrap"
+                  className="bg-gray-100 text-gray-700 px-3 py-2 rounded-md text-base lg:text-lg font-medium hover:bg-gray-200 transition-colors whitespace-nowrap"
                 >
                   Settings
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-red-200 transition-colors whitespace-nowrap"
+                  className="bg-red-100 text-red-700 px-3 py-2 rounded-md text-base lg:text-lg font-medium hover:bg-red-200 transition-colors whitespace-nowrap"
                 >
                   Logout
                 </button>
@@ -242,7 +242,7 @@ export default function Nav({ type = 'public' }: NavProps) {
             ) : (
               <Link
                 href="/login"
-                className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm lg:text-base font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
+                className="bg-blue-600 text-white px-3 py-2 rounded-md text-base lg:text-lg font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
               >
                 Login
               </Link>
@@ -278,7 +278,7 @@ export default function Nav({ type = 'public' }: NavProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block px-4 py-3 rounded-md text-lg font-medium transition-colors ${
+                className={`block px-4 py-3 rounded-md text-xl font-medium transition-colors ${
                   isActive(item.href)
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
@@ -302,14 +302,14 @@ export default function Nav({ type = 'public' }: NavProps) {
                   <div className="mt-3 space-y-2">
                     <Link
                       href="/provider/settings"
-                      className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-gray-200 transition-colors"
+                      className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-xl font-medium hover:bg-gray-200 transition-colors"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Settings
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full bg-red-100 text-red-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-red-200 transition-colors"
+                      className="w-full bg-red-100 text-red-700 px-4 py-3 rounded-md text-xl font-medium hover:bg-red-200 transition-colors"
                     >
                       Logout
                     </button>
@@ -321,14 +321,14 @@ export default function Nav({ type = 'public' }: NavProps) {
                     <>
                       <Link
                         href="/login"
-                        className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-gray-200 transition-colors"
+                        className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-xl font-medium hover:bg-gray-200 transition-colors"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         Login
                       </Link>
                       <Link
                         href="/register"
-                        className="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md text-lg font-medium hover:bg-blue-700 transition-colors"
+                        className="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md text-xl font-medium hover:bg-blue-700 transition-colors"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         Register
@@ -337,7 +337,7 @@ export default function Nav({ type = 'public' }: NavProps) {
                   ) : (
                     <Link
                       href="/login"
-                      className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-lg font-medium hover:bg-gray-200 transition-colors"
+                      className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md text-xl font-medium hover:bg-gray-200 transition-colors"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Provider Login
