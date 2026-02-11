@@ -514,7 +514,7 @@ function ProviderBookingsContent() {
 
                     {/* Action Buttons */}
                     {booking.status === 'PENDING' && (
-                      <div className="flex items-center space-x-2 ml-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:ml-4 mt-4 md:mt-0">
                         <button
                           onClick={() => handleBookingAction(booking.id, 'confirm')}
                           disabled={actionLoading === booking.id}
@@ -540,7 +540,7 @@ function ProviderBookingsContent() {
                     )}
                     
                     {booking.status === 'CONFIRMED' && (
-                      <div className="flex items-center space-x-2 ml-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:ml-4 mt-4 md:mt-0">
                         <button
                           onClick={() => handleBookingAction(booking.id, 'cancel')}
                           disabled={actionLoading === booking.id}
@@ -552,7 +552,7 @@ function ProviderBookingsContent() {
                     )}
                     
                     {(booking.status === 'CANCELLED' || booking.status === 'COMPLETED') && (
-                      <div className="flex items-center space-x-2 ml-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:ml-4 mt-4 md:mt-0">
                         <button
                           onClick={() => handleDelete(booking.id)}
                           disabled={actionLoading === booking.id}
