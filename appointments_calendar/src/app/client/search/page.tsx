@@ -100,8 +100,8 @@ function ProviderSearchContent() {
       <Nav type="public" />
       <div className="max-w-6xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 text-white">Find a Service Provider</h1>
-        <p className="text-gray-300">Search for providers and book appointments</p>
+        <h1 className="text-3xl font-bold mb-2 text-gray-900">Find a Service Provider</h1>
+        <p className="text-gray-700">Search for providers and book appointments</p>
       </div>
 
       {/* Search Form */}
@@ -180,7 +180,7 @@ function ProviderSearchContent() {
         ) : (
           <>
             <div className="mb-4">
-              <p className="text-sm text-gray-300">
+              <p className="text-sm text-gray-700">
                 Found {providers.length} provider{providers.length !== 1 ? 's' : ''}
               </p>
             </div>
