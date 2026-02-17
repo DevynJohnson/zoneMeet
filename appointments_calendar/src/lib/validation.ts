@@ -112,7 +112,7 @@ export const providerRegistrationSchema = z.object({
 // Provider login validation schema
 export const providerLoginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().trim().min(1, 'Password is required'),
 });
 
 // Calendar connection validation schema
