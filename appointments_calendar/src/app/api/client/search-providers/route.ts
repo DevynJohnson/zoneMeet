@@ -1,28 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-// Background maintenance function (runs async, doesn't slow down response)
-async function performBackgroundMaintenance() {
-  // Don't await this - let it run in background
-  setTimeout(async () => {
-    try {
-      const { TokenRefreshThrottleService } = await import('@/lib/token-refresh-throttle');
-      const results = await TokenRefreshThrottleService.refreshExpiringTokensThrottled();
-      
-      // Log summary for monitoring
-      if (results.checked > 0) {
-        console.log(`🔄 Background token maintenance: ${results.refreshed} refreshed, ${results.throttled} throttled, ${results.errors} errors out of ${results.checked} checked`);
-      }
-    } catch (error) {
-      console.warn('Background maintenance failed:', error);
-    }
-  }, 100); // Start after response is sent
-}
-
 export async function GET(request: NextRequest) {
   try {
-    // Run background token maintenance (no extra cost!)
-    performBackgroundMaintenance();
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';

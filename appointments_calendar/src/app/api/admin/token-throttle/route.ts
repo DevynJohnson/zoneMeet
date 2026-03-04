@@ -1,8 +1,24 @@
 // Admin endpoint for monitoring token refresh throttling
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { TokenRefreshThrottleService } from '@/lib/token-refresh-throttle';
 
-export async function GET() {
+// Simple auth check for admin endpoints
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.ADMIN_SECRET || 'change-this-secret-in-production';
+  
+  return authHeader === `Bearer ${adminSecret}`;
+}
+
+export async function GET(request: NextRequest) {
+  // Auth check for monitoring endpoint
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     const stats = TokenRefreshThrottleService.getThrottleStats();
     
@@ -36,7 +52,15 @@ export async function GET() {
 }
 
 // Manual trigger for throttled refresh (for testing/admin use)
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Auth check for POST endpoint
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     const results = await TokenRefreshThrottleService.refreshExpiringTokensThrottled();
     
