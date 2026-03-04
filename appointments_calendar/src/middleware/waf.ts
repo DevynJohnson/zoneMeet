@@ -141,6 +141,7 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
       '/api/client/booking/details', // Magic link booking details
       '/api/client/booking/reschedule', // Magic link reschedule
       '/api/client/booking/cancel', // Magic link cancellation
+      '/api/admin/token-throttle', // Admin endpoint with Bearer token auth (used by pg_cron)
     ];
     
     const isAuthEndpoint = authEndpoints.some(endpoint => 
