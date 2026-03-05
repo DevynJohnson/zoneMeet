@@ -1,0 +1,18 @@
+# Zone Meet Robots.txt
+
+# Allow all search engines to crawl public pages
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /terms
+Allow: /privacy
+Allow: /client/search
+
+# Block search engines from crawling private/admin areas
+Disallow: /provider/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+
+# Sitemap (optional - add if you create one)
+# Sitemap: https://www.zone-meet.com/sitemap.xml
