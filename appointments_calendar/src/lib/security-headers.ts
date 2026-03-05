@@ -169,7 +169,8 @@ export function securityMiddleware(request: NextRequest) {
         '/api/oauth',
         '/api/callback',
         '/api/provider/calendar/connect',
-        '/api/provider/calendar/callback'
+        '/api/provider/calendar/callback',
+        '/api/admin/token-throttle' // Admin endpoint with Bearer token auth (used by pg_cron)
       ];
       
       const isAuthEndpoint = authEndpoints.some(endpoint => 
