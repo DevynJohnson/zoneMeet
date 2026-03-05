@@ -223,9 +223,5 @@ export class TokenRefreshService {
   }
 }
 
-// Run cleanup every 24 hours
-setInterval(() => {
-  TokenRefreshService.cleanupExpiredTokens().catch(err => {
-    console.error('Periodic token cleanup failed:', err);
-  });
-}, 24 * 60 * 60 * 1000);
+// Note: Token cleanup is now handled by pg_cron scheduled job
+// See Supabase cron job: 'refresh-expiring-tokens' (runs every 30 minutes)

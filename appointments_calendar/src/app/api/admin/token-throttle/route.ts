@@ -1,6 +1,7 @@
 // Admin endpoint for monitoring token refresh throttling
 import { NextRequest, NextResponse } from 'next/server';
 import { TokenRefreshThrottleService } from '@/lib/token-refresh-throttle';
+import { TokenRefreshService } from '@/lib/token-refresh-service';
 
 // Simple auth check for admin endpoints
 function isAuthorized(request: NextRequest): boolean {
@@ -62,7 +63,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Refresh expiring calendar tokens
     const results = await TokenRefreshThrottleService.refreshExpiringTokensThrottled();
+    
+    // Also cleanup expired JWT refresh tokens
+    const cleanedUp = await TokenRefreshService.cleanupExpiredTokens();
     
     return NextResponse.json({
       success: true,
@@ -73,6 +78,9 @@ export async function POST(request: NextRequest) {
         requestsThrottled: results.throttled,
         errors: results.errors,
         details: results.details
+      },
+      cleanup: {
+        expiredTokensRemoved: cleanedUp
       }
     });
   } catch (error) {
