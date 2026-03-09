@@ -17,7 +17,8 @@ export type SecurityEventType =
   | 'SCANNER_DETECTED'
   | 'UNAUTHORIZED_API_ACCESS'
   | 'FILE_UPLOAD_VIOLATION'
-  | 'PRIVILEGE_ESCALATION_ATTEMPT';
+  | 'PRIVILEGE_ESCALATION_ATTEMPT'
+  | 'DOS_ATTACK_DETECTED';
 
 export interface SecurityEvent {
   type: SecurityEventType;
@@ -39,14 +40,26 @@ export interface SecurityMetrics {
   timeWindow: string;
 }
 
+// Interface for tracking request rates
+interface RequestLog {
+  ip: string;
+  timestamp: number;
+  userAgent: string;
+  url: string;
+}
+
 // In-memory storage for metrics (in production, use Redis or database)
 class SecurityMonitor {
   private events: SecurityEvent[] = [];
   private maxEvents = 10000; // Keep last 10k events in memory
+  private requestLogs: RequestLog[] = [];
+  private maxRequestLogs = 50000; // Track last 50k requests for DoS detection
+  private dosAlertedIPs: Map<string, number> = new Map(); // Track IPs we've already alerted about
   
   constructor() {
     // Clean up old events periodically
     setInterval(() => this.cleanupOldEvents(), 60 * 60 * 1000); // Every hour
+    setInterval(() => this.cleanupRequestLogs(), 10 * 60 * 1000); // Every 10 minutes
   }
   
   /**
@@ -75,6 +88,214 @@ class SecurityMonitor {
     
     // Check for alert conditions
     this.checkAlertConditions(securityEvent);
+  }
+  
+  /**
+   * Track a request for DoS detection
+   */
+  trackRequest(ip: string, userAgent: string, url: string): void {
+    // Skip tracking for localhost in development
+    if (process.env.NODE_ENV === 'development' && (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost')) {
+      return;
+    }
+    
+    this.requestLogs.push({
+      ip,
+      timestamp: Date.now(),
+      userAgent,
+      url,
+    });
+    
+    // Maintain max logs limit
+    if (this.requestLogs.length > this.maxRequestLogs) {
+      this.requestLogs = this.requestLogs.slice(-this.maxRequestLogs);
+    }
+    
+    // Check for DoS patterns
+    this.checkForDoSPattern(ip, userAgent, url);
+  }
+  
+  /**
+   * Detect DoS attack patterns
+   */
+  private checkForDoSPattern(ip: string, userAgent: string, url: string): void {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60 * 1000;
+    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    
+    // Get requests from this IP in the last 1 and 5 minutes
+    const requestsLastMinute = this.requestLogs.filter(
+      log => log.ip === ip && log.timestamp > oneMinuteAgo
+    ).length;
+    
+    const requestsLastFiveMinutes = this.requestLogs.filter(
+      log => log.ip === ip && log.timestamp > fiveMinutesAgo
+    ).length;
+    
+    // Check if we've already alerted about this IP recently (within last 5 minutes)
+    const lastAlert = this.dosAlertedIPs.get(ip);
+    if (lastAlert && (now - lastAlert) < 5 * 60 * 1000) {
+      return; // Don't spam alerts for the same IP
+    }
+    
+    // DoS detection thresholds
+    const DOS_THRESHOLD_1MIN = 50; // 50+ requests in 1 minute
+    const DOS_THRESHOLD_5MIN = 150; // 150+ requests in 5 minutes
+    
+    if (requestsLastMinute >= DOS_THRESHOLD_1MIN) {
+      this.dosAlertedIPs.set(ip, now);
+      this.logEvent({
+        type: 'DOS_ATTACK_DETECTED',
+        severity: 'HIGH',
+        ip,
+        userAgent,
+        url,
+        details: {
+          requestsInLastMinute: requestsLastMinute,
+          requestsInLastFiveMinutes: requestsLastFiveMinutes,
+          pattern: 'rapid_fire_requests',
+        },
+      });
+    } else if (requestsLastFiveMinutes >= DOS_THRESHOLD_5MIN) {
+      this.dosAlertedIPs.set(ip, now);
+      this.logEvent({
+        type: 'DOS_ATTACK_DETECTED',
+        severity: 'HIGH',
+        ip,
+        userAgent,
+        url,
+        details: {
+          requestsInLastMinute: requestsLastMinute,
+          requestsInLastFiveMinutes: requestsLastFiveMinutes,
+          pattern: 'sustained_attack',
+        },
+      });
+    }
+  }
+  
+  /**
+   * Get request statistics for an IP
+   */
+  getRequestStats(ip: string, windowMinutes: number = 60): {
+    totalRequests: number;
+    requestsPerMinute: number[];
+    topUrls: { url: string; count: number }[];
+  } {
+    const cutoff = Date.now() - windowMinutes * 60 * 1000;
+    const requests = this.requestLogs.filter(
+      log => log.ip === ip && log.timestamp > cutoff
+    );
+    
+    // Calculate requests per minute
+    const minuteBuckets: Record<number, number> = {};
+    requests.forEach(log => {
+      const minute = Math.floor(log.timestamp / (60 * 1000));
+      minuteBuckets[minute] = (minuteBuckets[minute] || 0) + 1;
+    });
+    const requestsPerMinute = Object.values(minuteBuckets);
+    
+    // Count URLs
+    const urlCounts: Record<string, number> = {};
+    requests.forEach(log => {
+      urlCounts[log.url] = (urlCounts[log.url] || 0) + 1;
+    });
+    const topUrls = Object.entries(urlCounts)
+      .map(([url, count]) => ({ url, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    
+    return {
+      totalRequests: requests.length,
+      requestsPerMinute,
+      topUrls,
+    };
+  }
+  
+  /**
+   * Get list of suspicious IPs with their activity
+   */
+  getSuspiciousIPs(windowMinutes: number = 60): Array<{
+    ip: string;
+    requestCount: number;
+    securityEvents: number;
+    lastSeen: string;
+    threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  }> {
+    const cutoff = Date.now() - windowMinutes * 60 * 1000;
+    const ipStats = new Map<string, {
+      requests: number;
+      events: SecurityEvent[];
+      lastSeen: number;
+    }>();
+    
+    // Aggregate request counts
+    this.requestLogs
+      .filter(log => log.timestamp > cutoff)
+      .forEach(log => {
+        const stats = ipStats.get(log.ip) || { requests: 0, events: [], lastSeen: 0 };
+        stats.requests++;
+        stats.lastSeen = Math.max(stats.lastSeen, log.timestamp);
+        ipStats.set(log.ip, stats);
+      });
+    
+    // Aggregate security events
+    this.events
+      .filter(event => new Date(event.timestamp).getTime() > cutoff)
+      .forEach(event => {
+        const stats = ipStats.get(event.ip) || { requests: 0, events: [], lastSeen: 0 };
+        stats.events.push(event);
+        stats.lastSeen = Math.max(stats.lastSeen, new Date(event.timestamp).getTime());
+        ipStats.set(event.ip, stats);
+      });
+    
+    // Determine threat level and filter suspicious IPs
+    const suspiciousIPs = Array.from(ipStats.entries())
+      .map(([ip, stats]) => {
+        const highSeverityEvents = stats.events.filter(
+          e => ['HIGH', 'CRITICAL'].includes(e.severity)
+        ).length;
+        
+        let threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
+        
+        // Threat level calculation
+        if (highSeverityEvents >= 5 || stats.requests > 200) {
+          threatLevel = 'CRITICAL';
+        } else if (highSeverityEvents >= 3 || stats.requests > 100) {
+          threatLevel = 'HIGH';
+        } else if (stats.events.length >= 5 || stats.requests > 50) {
+          threatLevel = 'MEDIUM';
+        }
+        
+        return {
+          ip,
+          requestCount: stats.requests,
+          securityEvents: stats.events.length,
+          lastSeen: new Date(stats.lastSeen).toISOString(),
+          threatLevel,
+        };
+      })
+      .filter(item => item.securityEvents > 0 || item.requestCount > 50)
+      .sort((a, b) => {
+        // Sort by threat level, then by request count
+        const threatOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+        return (threatOrder[b.threatLevel] - threatOrder[a.threatLevel]) ||
+               (b.requestCount - a.requestCount);
+      });
+    
+    return suspiciousIPs;
+  }
+  
+  private cleanupRequestLogs(): void {
+    const cutoff = Date.now() - 60 * 60 * 1000; // Keep last hour
+    this.requestLogs = this.requestLogs.filter(log => log.timestamp > cutoff);
+    
+    // Clean up old DoS alerts
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    for (const [ip, timestamp] of this.dosAlertedIPs.entries()) {
+      if (timestamp < fiveMinutesAgo) {
+        this.dosAlertedIPs.delete(ip);
+      }
+    }
   }
   
   /**
@@ -162,6 +383,19 @@ class SecurityMonitor {
         block: true, 
         reason: 'Automated scanning detected', 
         duration: 24 * 60 * 60 * 1000 // 24 hours
+      };
+    }
+    
+    // DoS attacks
+    const dosEvents = recentEvents.filter(
+      event => event.type === 'DOS_ATTACK_DETECTED'
+    ).length;
+    
+    if (dosEvents >= 1) {
+      return { 
+        block: true, 
+        reason: 'DoS attack detected', 
+        duration: 2 * 60 * 60 * 1000 // 2 hours
       };
     }
     
@@ -362,6 +596,7 @@ function getSeverityForEventType(type: SecurityEventType): SecurityEvent['severi
     'SQL_INJECTION_ATTEMPT',
     'XSS_ATTEMPT',
     'UNAUTHORIZED_API_ACCESS',
+    'DOS_ATTACK_DETECTED',
   ];
   
   const mediumSeverityEvents: SecurityEventType[] = [
@@ -392,4 +627,17 @@ export function checkIPBlocking(ip: string): { block: boolean; reason?: string; 
 
 export function clearIPEvents(ip: string): void {
   return securityMonitor.clearEventsForIP(ip);
+}
+
+// Request tracking exports
+export function trackRequest(ip: string, userAgent: string, url: string): void {
+  return securityMonitor.trackRequest(ip, userAgent, url);
+}
+
+export function getRequestStats(ip: string, windowMinutes?: number) {
+  return securityMonitor.getRequestStats(ip, windowMinutes);
+}
+
+export function getSuspiciousIPs(windowMinutes?: number) {
+  return securityMonitor.getSuspiciousIPs(windowMinutes);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, validateSecurityHeaders } from '@/lib/validation';
-import { logSuspiciousActivity, checkIPBlocking } from '@/lib/security-monitor';
+import { logSuspiciousActivity, checkIPBlocking, trackRequest } from '@/lib/security-monitor';
 
 export interface WAFConfig {
   rateLimit: {
@@ -44,6 +44,9 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
 
   const clientIP = getClientIP(request);
   const userAgent = request.headers.get('user-agent') || '';
+  
+  // Track request for DoS detection (before any blocking logic)
+  trackRequest(clientIP, userAgent, url.pathname);
   
   // 0. Check if IP is currently blocked by security monitor
   const blockCheck = checkIPBlocking(clientIP);
@@ -142,6 +145,7 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
       '/api/client/booking/reschedule', // Magic link reschedule
       '/api/client/booking/cancel', // Magic link cancellation
       '/api/admin/token-throttle', // Admin endpoint with Bearer token auth (used by pg_cron)
+      '/api/admin/security-monitor', // Admin endpoint with Bearer token auth
     ];
     
     const isAuthEndpoint = authEndpoints.some(endpoint => 
