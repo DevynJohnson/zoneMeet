@@ -72,13 +72,20 @@ export async function POST(request: NextRequest) {
 
       // If we get here, authentication worked
 
-      // Save the Apple Calendar connection
+      // Save the Apple Calendar connection with properly formatted credentials
+      // Store as base64-encoded JSON for consistency with the sync code
+      const credentials = {
+        appleId: appleId,
+        appSpecificPassword: appPassword
+      };
+      const encodedCredentials = Buffer.from(JSON.stringify(credentials)).toString('base64');
+
       await CalendarConnectionService.createConnection({
         providerId: provider.id,
         platform: CalendarPlatform.APPLE,
         email: appleId,
         calendarId: 'primary',
-        accessToken: appPassword, // Store app password as access token
+        accessToken: encodedCredentials, // Store encoded JSON credentials
         refreshToken: undefined, // Apple doesn't use refresh tokens
         tokenExpiry: undefined, // App passwords don't expire (until manually revoked)
       });
