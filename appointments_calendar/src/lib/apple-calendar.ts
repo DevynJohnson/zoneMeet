@@ -50,10 +50,9 @@ export class AppleCalendarService {
         validateStatus: (status) => status >= 200 && status < 300,
       });
 
-      console.log(`✅ Apple Calendar connection test successful (${response.status})`);
       return true;
     } catch (error) {
-      console.error('❌ Apple Calendar connection test failed:', error);
+      console.error('Apple Calendar connection test failed:', error);
       return false;
     }
   }
@@ -90,7 +89,6 @@ export class AppleCalendarService {
         },
       });
 
-      console.log('✅ Apple Calendar connected successfully');
       return connection;
     } catch (error) {
       console.error('Failed to connect Apple calendar:', error);
@@ -109,11 +107,8 @@ export class AppleCalendarService {
         throw new Error('Failed to connect to Apple Calendar');
       }
 
-      console.log('🔍 Discovering Apple calendars for:', credentials.appleId);
-
       // Discover actual calendars using CalDAV
       const calendarPaths = await this.discoverCalendarPaths(credentials);
-      console.log(`📂 Found ${calendarPaths.length} calendar path(s)`);
 
       // Fetch details for each calendar
       const calendars: AppleCalendar[] = [];
@@ -146,7 +141,6 @@ export class AppleCalendarService {
           });
 
           const responseData = String(response.data);
-          console.log(`📄 Calendar ${calendarPath} response snippet:`, responseData.substring(0, 800));
           
           // Extract display name (handle namespace prefixes like D:displayname)
           const displayNameMatch = responseData.match(/<(?:displayname|D:displayname|d:displayname)[^>]*>([^<]+)<\/(?:displayname|D:displayname|d:displayname)>/i);
@@ -178,15 +172,12 @@ export class AppleCalendarService {
             calendarColor: color,
             timezone: 'UTC',
           });
-
-          console.log(`✅ Loaded calendar: ${displayName}`);
         } catch (error) {
           console.error(`Failed to fetch details for calendar ${calendarPath}:`, error);
         }
       }
 
       if (calendars.length === 0) {
-        console.warn('⚠️ No calendars found, returning default');
         // Return a default calendar as fallback
         return [
           {
@@ -260,7 +251,6 @@ export class AppleCalendarService {
       }
 
       if (!uid || !dtstart || !dtend) {
-        console.warn('⚠️ Incomplete event data:', { uid, dtstart, dtend });
         return null;
       }
 
@@ -268,11 +258,6 @@ export class AppleCalendarService {
       const parseICalDate = (dateStr: string, tzid?: string): Date => {
         // Check if the datetime is in UTC (ends with Z)
         const isUTC = dateStr.trim().endsWith('Z');
-        
-        // Log timezone info for debugging
-        if (tzid) {
-          console.log(`📍 Parsing datetime with TZID: ${tzid}, value: ${dateStr}`);
-        }
         
         // Remove timezone info but preserve numbers and T separator
         const cleanDateStr = dateStr.replace(/[^0-9T]/g, '');
@@ -317,11 +302,9 @@ export class AppleCalendarService {
         description: description || undefined,
       };
 
-      console.log('✅ Parsed event:', parsedEvent.title, parsedEvent.startTime);
       return parsedEvent;
     } catch (error) {
       console.error('Failed to parse iCalendar event:', error);
-      console.error('Event data:', icalData.substring(0, 200));
       return null;
     }
   }
@@ -408,7 +391,6 @@ export class AppleCalendarService {
     credentials: AppleCalendarCredentials
   ): Promise<string[]> {
     try {
-      console.log('🔍 Step 1: Getting principal URL');
       // First, get the user's principal URL
       const principalResponse = await axios({
         method: 'PROPFIND',
@@ -433,12 +415,8 @@ export class AppleCalendarService {
 
       // Extract principal path from response
       const principalData = String(principalResponse.data);
-      console.log('📄 Principal response snippet:', principalData.substring(0, 500));
       const principalMatch = principalData.match(/<(?:current-user-principal|D:current-user-principal)[^>]*>\s*<(?:href|D:href)[^>]*>([^<]+)<\/(?:href|D:href)>/i);
       const principalPath = principalMatch ? principalMatch[1] : `/${credentials.appleId.split('@')[0]}/`;
-      console.log('👤 Principal path:', principalPath);
-
-      console.log('🔍 Step 2: Getting calendar-home-set');
       // Get calendar-home-set
       const homeSetResponse = await axios({
         method: 'PROPFIND',
@@ -462,18 +440,13 @@ export class AppleCalendarService {
       });
 
       const homeSetData = String(homeSetResponse.data);
-      console.log('📄 Calendar-home-set response snippet:', homeSetData.substring(0, 500));
       const homeSetMatch = homeSetData.match(/<(?:calendar-home-set|c:calendar-home-set|C:calendar-home-set)[^>]*>\s*<(?:href|D:href)[^>]*>([^<]+)<\/(?:href|D:href)>/i);
       const homeSetPath = homeSetMatch ? homeSetMatch[1] : `${principalPath}calendars/`;
-      console.log('🏠 Calendar home-set path:', homeSetPath);
 
       // Determine the full URL for calendar-home-set (may already be absolute)
       const homeSetUrl = homeSetPath.startsWith('http://') || homeSetPath.startsWith('https://')
         ? homeSetPath
         : `${this.CALDAV_BASE_URL}${homeSetPath}`;
-      console.log('🌐 Calendar home-set URL:', homeSetUrl);
-
-      console.log('🔍 Step 3: Listing calendars');
       // List all calendars
       const calendarsResponse = await axios({
         method: 'PROPFIND',
@@ -500,12 +473,9 @@ export class AppleCalendarService {
 
       // Parse the multistatus response more carefully
       const calendarsData = String(calendarsResponse.data);
-      console.log('📄 Calendars response length:', calendarsData.length);
-      console.log('📄 Calendars response preview:', calendarsData.substring(0, 1000));
       
       // Split response into individual <response> elements (match with any attributes)
       const responseBlocks = calendarsData.split(/<(?:response|D:response)(?:\s[^>]*)?\s*>/i).slice(1);
-      console.log('📦 Found', responseBlocks.length, 'response blocks');
       
       const calendarPaths: string[] = [];
 
@@ -545,27 +515,17 @@ export class AppleCalendarService {
         if (hasCalendar && !shouldSkip && path !== homeSetPathForComparison) {
           const fullPath = path.startsWith('http') ? path : `${this.CALDAV_BASE_URL}${path}`;
           calendarPaths.push(fullPath);
-          console.log('✅ Found calendar:', path);
-        } else {
-          console.log('⏭️  Skipped:', path, '(hasCalendar:', !!hasCalendar, ', shouldSkip:', shouldSkip, ')');
         }
       }
-
-      console.log('📊 Total calendars discovered:', calendarPaths.length);
       
       if (calendarPaths.length === 0) {
-        console.warn('⚠️ No calendars found, using fallback');
       }
 
       return calendarPaths.length > 0 ? calendarPaths : [
         `${this.CALDAV_BASE_URL}/${credentials.appleId.split('@')[0]}/calendars/`,
       ];
     } catch (error) {
-      console.error('❌ Failed to discover calendar paths:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Response status:', error.response?.status);
-        console.error('Response data:', error.response?.data);
-      }
+      console.error('Failed to discover calendar paths:', error);
       // Fallback to common calendar paths
       return [
         `${this.CALDAV_BASE_URL}/${credentials.appleId.split('@')[0]}/calendars/`,
@@ -591,12 +551,9 @@ export class AppleCalendarService {
       try {
         // Try to decode as JSON first (new format)
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
-        console.log('🔍 Decoded accessToken:', decoded.substring(0, 100) + '...');
         credentials = JSON.parse(decoded);
-        console.log('✅ Successfully parsed JSON credentials');
       } catch (error) {
         // Fallback: treat accessToken as legacy format (email:password)
-        console.log('⚠️ Failed to parse as JSON, treating as legacy format:', error);
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
         
         // Check if decoded string is in 'email:password' format
@@ -613,7 +570,7 @@ export class AppleCalendarService {
             appleId: connection.email || 'unknown@icloud.com',
             appSpecificPassword: decoded
           };
-          console.log('🔄 Using very old legacy credentials format');
+
         }
       }
 
@@ -701,8 +658,6 @@ export class AppleCalendarService {
         where: { id: connection.id },
         data: { lastSyncAt: new Date() },
       });
-
-      console.log(`✅ Apple calendar sync completed: ${totalEventsCount} new events`);
 
       return {
         success: true,
@@ -814,7 +769,6 @@ export class AppleCalendarService {
         data: { isActive: false },
       });
 
-      console.log('✅ Apple Calendar disconnected successfully');
       return true;
     } catch (error) {
       console.error('Failed to disconnect Apple calendar:', error);

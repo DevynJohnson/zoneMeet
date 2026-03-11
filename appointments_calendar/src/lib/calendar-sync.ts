@@ -52,8 +52,6 @@ export class CalendarSyncService {
       });
 
       if (expiringConnections.length > 0) {
-        console.log(`🔄 Opportunistic maintenance: refreshing ${expiringConnections.length} expiring tokens`);
-        
         // Refresh in parallel (fast)
         const { refreshConnectionToken } = await import('@/lib/token-refresh');
         
@@ -61,9 +59,8 @@ export class CalendarSyncService {
           expiringConnections.map(async (conn) => {
             try {
               await refreshConnectionToken(conn.id);
-              console.log(`✅ Refreshed ${conn.platform} token for provider ${conn.providerId}`);
             } catch (error) {
-              console.warn(`⚠️ Failed to refresh ${conn.platform} token:`, error);
+              console.warn(`Failed to refresh ${conn.platform} token:`, error);
             }
           })
         );
@@ -86,8 +83,6 @@ export class CalendarSyncService {
       start: new Date(),
       end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days
     };
-
-    console.log(`📅 Syncing all calendars for provider ${providerId} (${defaultRange.start.toDateString()} to ${defaultRange.end.toDateString()})`);
 
     const connections = await prisma.calendarConnection.findMany({
       where: {
@@ -188,13 +183,6 @@ export class CalendarSyncService {
         end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       };
 
-      console.log('🌐 Starting Outlook calendar sync:', {
-        connectionId: connection.id,
-        calendarId: connection.calendarId,
-        tokenExpiry: connection.tokenExpiry,
-        dateRange: `${syncRange.start.toDateString()} to ${syncRange.end.toDateString()}`
-      });
-
       // Ensure we have a valid access token (refresh if needed)
       const validConnection = {
         ...connection,
@@ -214,16 +202,10 @@ export class CalendarSyncService {
           const settings = calendarSettings?.[calendarId];
           return settings?.syncEvents === true;
         });
-        
-        console.log(`📋 Multi-calendar mode: ${calendarsToSync.length} calendars enabled for sync`);
-        console.log(`📝 Calendars to sync:`, calendarsToSync);
-      } else {
-        console.log(`📋 Single-calendar mode: using primary calendar ${connection.calendarId}`);
       }
 
       // If no calendars are enabled for sync, return early
       if (calendarsToSync.length === 0) {
-        console.log('⏭️ No calendars enabled for sync, skipping');
         return {
           success: true,
           eventsProcessed: 0,
@@ -236,8 +218,6 @@ export class CalendarSyncService {
       // Sync each calendar that has syncEvents enabled
       for (const calendarId of calendarsToSync) {
         try {
-          console.log(`📅 Syncing Outlook calendar: ${calendarId}`);
-          
           // Create date filter for Microsoft Graph API
           const startFilter = syncRange.start.toISOString();
           const endFilter = syncRange.end.toISOString();
@@ -270,8 +250,6 @@ export class CalendarSyncService {
               console.error(`Failed to process Outlook event ${event.id}:`, eventError);
             }
           }
-
-          console.log(`✅ Processed ${calendarEventsProcessed} events from calendar ${calendarId}`);
         } catch (calendarError) {
           console.error(`Failed to sync Outlook calendar ${calendarId}:`, calendarError);
         }
@@ -318,14 +296,6 @@ export class CalendarSyncService {
         end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       };
 
-      console.log('🌐 Starting Google calendar sync:', {
-        connectionId: connection.id,
-        calendarId: connection.calendarId,
-        tokenExpiry: connection.tokenExpiry,
-        dateRange: `${syncRange.start.toDateString()} to ${syncRange.end.toDateString()}`
-      });
-
-      // Ensure we have a valid access token (refresh if needed)
       const validConnection = {
         ...connection,
         refreshToken: connection.refreshToken || null
@@ -351,14 +321,7 @@ export class CalendarSyncService {
         console.log(`📋 Single-calendar mode: syncing primary calendar only`);
       }
 
-      let totalEventsProcessed = 0;
-
-      // Sync events from each selected calendar
-      for (const calendarId of calendarsToSync) {
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        while (retryCount <= maxRetries) {
+ries) {
           try {
             console.log(`📡 Fetching events from Google Calendar: ${calendarId} (attempt ${retryCount + 1}/${maxRetries + 1})`);
             
@@ -380,22 +343,19 @@ export class CalendarSyncService {
             );
 
             const events = response.data.items || [];
-            console.log(`📅 Found ${events.length} events in calendar ${calendarId}`);
             
             let calendarEventsProcessed = 0;
 
             for (const event of events) {
               try {
-                console.log(`📝 Processing Google event: ${event.summary || 'Untitled'} (${event.id}) from ${calendarId}`);
                 await this.processGoogleEvent(connection.providerId, event, calendarId, connection.id);
                 calendarEventsProcessed++;
                 totalEventsProcessed++;
               } catch (eventError) {
-                console.error(`❌ Failed to process Google event ${event.id}:`, eventError);
+                console.error(`Failed to process Google event ${event.id}:`, eventError);
               }
             }
             
-            console.log(`✅ Processed ${calendarEventsProcessed} events from calendar ${calendarId}`);
             break; // Success, exit retry loop
             
           } catch (calendarError: unknown) {
@@ -419,18 +379,15 @@ export class CalendarSyncService {
             
             if (isRetryableError && retryCount <= maxRetries) {
               const delayMs = Math.min(1000 * Math.pow(2, retryCount - 1), 10000); // Exponential backoff, max 10s
-              console.warn(`⚠️ Retryable error for calendar ${calendarId}, retrying in ${delayMs}ms:`, error.message || String(calendarError));
               await new Promise(resolve => setTimeout(resolve, delayMs));
               continue;
             } else {
-              console.error(`❌ Failed to sync calendar ${calendarId} after ${retryCount} attempts:`, error.message || String(calendarError));
+              console.error(`Failed to sync calendar ${calendarId}:`, error.message || String(calendarError));
               break; // Exit retry loop
             }
           }
         }
       }
-
-      console.log(`✅ Processed ${totalEventsProcessed} Google events successfully`);
 
       // Update last sync time
       await prisma.calendarConnection.update({
@@ -530,7 +487,6 @@ export class CalendarSyncService {
     connectionId: string
   ) {
     // Implementation for processing Outlook events
-    console.log(`Processing Outlook event: ${event.subject}`);
   }
 
   /**
@@ -554,7 +510,6 @@ export class CalendarSyncService {
     
     // Skip events without valid dates
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      console.log(`⚠️ Skipping Google event with invalid dates: ${event.summary}`);
       return;
     }
 
@@ -596,9 +551,7 @@ export class CalendarSyncService {
       },
     });
     
-    console.log(`✅ Processed Google event: ${event.summary} (${startTime.toLocaleDateString()})`);
-  }
-
+  
   // Fast booking-specific sync methods with date range filtering
   // These are optimized for client-side appointment booking lookups
 
@@ -606,12 +559,8 @@ export class CalendarSyncService {
    * Fast sync for booking lookups - only syncs events in the specified date range
    */
   static async syncForBookingLookup(providerId: string, dateRange: DateRange) {
-    console.log(`🚀 Fast booking sync for provider ${providerId} (${dateRange.start.toDateString()} to ${dateRange.end.toDateString()})`);
-    
     const connections = await prisma.calendarConnection.findMany({
-      where: {
-        providerId,
-        isActive: true,
+      whisActive: true,
         syncEvents: true,
       }
     });
@@ -649,7 +598,6 @@ export class CalendarSyncService {
       result.status === 'fulfilled' && result.value?.success
     ).length;
 
-    console.log(`✅ Fast booking sync completed: ${successfulSyncs}/${connections.length} calendars synced`);
     return { success: true, synced: successfulSyncs, total: connections.length };
   }
 
@@ -665,8 +613,6 @@ export class CalendarSyncService {
     calendarSettings?: unknown;
   }, dateRange: DateRange) {
     try {
-      console.log('🌐 Fast Google calendar sync for booking lookup');
-
       const validConnection = {
         ...connection,
         refreshToken: connection.refreshToken || null
@@ -695,8 +641,6 @@ export class CalendarSyncService {
           timeMax: dateRange.end.toISOString(), // Key optimization: only get events in booking window
         };
 
-        console.log(`📡 Fast fetching Google Calendar events: ${calendarId} (${dateRange.start.toISOString()} to ${dateRange.end.toISOString()})`);
-        
         const response = await axios.get(
           `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
           {
@@ -706,7 +650,6 @@ export class CalendarSyncService {
         );
 
         const events = response.data.items || [];
-        console.log(`📅 Found ${events.length} events in booking window for calendar ${calendarId}`);
 
         let calendarEventsProcessed = 0;
 
@@ -771,8 +714,6 @@ export class CalendarSyncService {
         .filter(result => result.status === 'fulfilled')
         .reduce((total, result) => total + (result.value || 0), 0);
 
-      console.log(`✅ Fast Google sync processed ${totalEventsProcessed} events across ${calendarsToSync.length} calendars`);
-
       // Update connection sync timestamp
       await prisma.calendarConnection.update({
         where: { id: connection.id },
@@ -785,7 +726,6 @@ export class CalendarSyncService {
       
       // Check if this is a token refresh error
       if (error instanceof Error && error.message.includes('Token refresh failed')) {
-        console.log(`🔄 Google calendar connection requires re-authentication for provider ${connection.providerId}`);
         return { 
           success: false, 
           error: 'Authentication required',
@@ -842,9 +782,7 @@ export class CalendarSyncService {
         };
 
         console.log(`📡 Fast fetching Outlook events for ${calendarId} (${startFilter} to ${endFilter})`);
-        
-        const response = await axios.get(
-          `https://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events`,
+        ttps://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -857,9 +795,6 @@ export class CalendarSyncService {
         const events = response.data.value || [];
         console.log(`📅 Found ${events.length} events in booking window for Outlook calendar ${calendarId}`);
 
-        let calendarEventsProcessed = 0;
-
-        for (const event of events) {
           const startTime = new Date(event.start.dateTime);
           const endTime = new Date(event.end.dateTime);
 
@@ -957,7 +892,6 @@ export class CalendarSyncService {
     }, 
     dateRange: DateRange
   ) {
-    console.log(`⚠️ Apple calendar fast sync not yet implemented, falling back to regular sync for ${dateRange.start.toDateString()} - ${dateRange.end.toDateString()}`);
     return this.syncAppleCalendar(connection);
   }
 }

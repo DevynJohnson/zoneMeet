@@ -45,6 +45,9 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
   // Form state
   const [isActive, setIsActive] = useState(connection.isActive);
 
+  // Modal state for disconnect confirmation
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
       const token = localStorage.getItem('providerToken');
@@ -181,6 +184,29 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
     }
   };
 
+  const handleDisconnect = async () => {
+    try {
+      const token = localStorage.getItem('providerToken');
+      const response = await secureFetch(`/api/provider/calendar/connections/${connection.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect calendar');
+      }
+
+      showSuccess('Teams Calendar disconnected successfully');
+      // Redirect back to calendar connections page
+      window.location.href = '/provider/calendar/connect?disconnected=teams';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect calendar');
+      setShowDisconnectModal(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
@@ -295,6 +321,13 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
                       className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700"
                     >
                       Re-authenticate
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowDisconnectModal(true)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                    >
+                      Disconnect Calendar
                     </button>
                   </div>
                 </div>
@@ -418,6 +451,34 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
           </div>
         </div>
       </div>
+
+      {/* Disconnect Confirmation Modal */}
+      {showDisconnectModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Disconnect Teams Calendar
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to disconnect this Teams Calendar? This will remove all synced events and cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDisconnect}
+                className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

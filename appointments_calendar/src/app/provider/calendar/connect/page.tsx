@@ -434,12 +434,20 @@ export default function CalendarConnectPage() {
                             </svg>
                             <span className="break-all">Connected: {connection.email}</span>
                           </div>
-                          <button
-                            onClick={() => router.push(`/provider/calendar/manage/${connection.id}`)}
-                            className="inline-flex items-center px-3 py-1 border border-gray-800 text-xs font-medium rounded text-gray-800 bg-white hover:bg-gray-50 transition-colors"
-                          >
-                            Manage
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => router.push(`/provider/calendar/manage/${connection.id}`)}
+                              className="inline-flex items-center px-3 py-1 border border-gray-800 text-xs font-medium rounded text-gray-800 bg-white hover:bg-gray-50 transition-colors"
+                            >
+                              Manage
+                            </button>
+                            <button
+                              onClick={() => handleDisconnectCalendar(connection.id, 'Apple')}
+                              className="inline-flex items-center px-3 py-1 border border-red-600 text-xs font-medium rounded text-red-600 bg-white hover:bg-red-50 transition-colors"
+                            >
+                              Disconnect
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
