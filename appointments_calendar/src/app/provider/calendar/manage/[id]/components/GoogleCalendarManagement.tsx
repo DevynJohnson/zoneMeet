@@ -365,12 +365,6 @@ export default function GoogleCalendarManagement({ connection, onConnectionUpdat
     return new Date(dateString).toLocaleString();
   };
 
-  const formatSyncFrequency = (minutes: number) => {
-    if (minutes < 60) return `${minutes} minutes`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours} hour${hours > 1 ? 's' : ''}`;
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

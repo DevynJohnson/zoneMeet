@@ -14,7 +14,7 @@ interface Provider {
 
 export default function ProviderDashboard() {
   const router = useRouter();
-  const { showSuccess, showError } = useAlert();
+  const { showSuccess } = useAlert();
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
 

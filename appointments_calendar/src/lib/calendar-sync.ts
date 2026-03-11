@@ -239,12 +239,10 @@ export class CalendarSyncService {
           );
 
           const events = response.data.value || [];
-          let calendarEventsProcessed = 0;
 
           for (const event of events) {
             try {
               await this.processOutlookEvent(connection.providerId, event, calendarId, connection.id);
-              calendarEventsProcessed++;
               totalEventsProcessed++;
             } catch (eventError) {
               console.error(`Failed to process Outlook event ${event.id}:`, eventError);
@@ -351,13 +349,10 @@ export class CalendarSyncService {
             );
 
             const events = response.data.items || [];
-            
-            let calendarEventsProcessed = 0;
 
             for (const event of events) {
               try {
                 await this.processGoogleEvent(connection.providerId, event, calendarId, connection.id);
-                calendarEventsProcessed++;
                 totalEventsProcessed++;
               } catch (eventError) {
                 console.error(`Failed to process Google event ${event.id}:`, eventError);
@@ -479,7 +474,9 @@ export class CalendarSyncService {
    * Process Outlook calendar event
    */
   private static async processOutlookEvent(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     providerId: string, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     event: {
       id: string;
       subject?: string;
@@ -558,7 +555,7 @@ export class CalendarSyncService {
         maxBookings: 1,
       },
     });
-    
+  }
   
   // Fast booking-specific sync methods with date range filtering
   // These are optimized for client-side appointment booking lookups
@@ -792,7 +789,9 @@ export class CalendarSyncService {
         };
 
         console.log(`📡 Fast fetching Outlook events for ${calendarId} (${startFilter} to ${endFilter})`);
-        ttps://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events`,
+        
+        const response = await axios.get(
+          `https://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -805,6 +804,8 @@ export class CalendarSyncService {
         const events = response.data.value || [];
         console.log(`📅 Found ${events.length} events in booking window for Outlook calendar ${calendarId}`);
 
+        let calendarEventsProcessed = 0;
+        for (const event of events) {
           const startTime = new Date(event.start.dateTime);
           const endTime = new Date(event.end.dateTime);
 
@@ -900,6 +901,7 @@ export class CalendarSyncService {
       tokenExpiry: Date | null;
       platform: string;
     }, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     dateRange: DateRange
   ) {
     return this.syncAppleCalendar(connection);

@@ -37,7 +37,7 @@ interface TeamsCalendarManagementProps {
 }
 
 export default function TeamsCalendarManagement({ connection, onConnectionUpdate }: TeamsCalendarManagementProps) {
-  const { showSuccess, showError } = useAlert();
+  const { showSuccess } = useAlert();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -209,12 +209,6 @@ export default function TeamsCalendarManagement({ connection, onConnectionUpdate
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
-  };
-
-  const formatSyncFrequency = (minutes: number) => {
-    if (minutes < 60) return `${minutes} minutes`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours} hour${hours > 1 ? 's' : ''}`;
   };
 
   return (

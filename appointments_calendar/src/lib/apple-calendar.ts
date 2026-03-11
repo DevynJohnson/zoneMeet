@@ -29,7 +29,7 @@ export class AppleCalendarService {
   static async testConnection(credentials: AppleCalendarCredentials): Promise<boolean> {
     try {
       // Test with a simple PROPFIND request to the CalDAV server
-      const response = await axios({
+      await axios({
         method: 'PROPFIND',
         url: `${this.CALDAV_BASE_URL}/`,
         auth: {
@@ -552,7 +552,7 @@ export class AppleCalendarService {
         // Try to decode as JSON first (new format)
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
         credentials = JSON.parse(decoded);
-      } catch (error) {
+      } catch {
         // Fallback: treat accessToken as legacy format (email:password)
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
         
