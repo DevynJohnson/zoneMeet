@@ -568,9 +568,11 @@ export class CalendarSyncService {
    */
   static async syncForBookingLookup(providerId: string, dateRange: DateRange) {
     const connections = await prisma.calendarConnection.findMany({
-      whisActive: true,
+      where: {
+        providerId,
+        isActive: true,
         syncEvents: true,
-      }
+      },
     });
 
     const syncPromises = connections.map(async (connection) => {
