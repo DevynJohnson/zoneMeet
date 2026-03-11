@@ -552,11 +552,22 @@ export class AppleCalendarService {
         // Try to decode as JSON first (new format)
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
         credentials = JSON.parse(decoded);
+        
+        // Validate that we got the expected fields
+        if (!credentials.appleId || !credentials.appSpecificPassword) {
+          throw new Error('Invalid JSON structure');
+        }
       } catch {
         // Fallback: treat accessToken as legacy format (email:password)
         const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
         
-        // Check if decoded string is in 'email:password' format
+        // Check if decoded string is in 'email:password' format (has exactly one colon, not JSON)
+        // JSON format check: if it starts with { it's likely malformed JSON, not legacy
+        if (decoded.startsWith('{')) {
+          throw new Error('Malformed JSON credentials - please reconnect your Apple Calendar');
+        }
+        
+        // Now safe to check for legacy email:password format
         if (decoded.includes(':')) {
           const [appleId, appSpecificPassword] = decoded.split(':', 2);
           credentials = {
@@ -570,7 +581,6 @@ export class AppleCalendarService {
             appleId: connection.email || 'unknown@icloud.com',
             appSpecificPassword: decoded
           };
-
         }
       }
 
