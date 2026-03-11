@@ -321,7 +321,15 @@ export class CalendarSyncService {
         console.log(`📋 Single-calendar mode: syncing primary calendar only`);
       }
 
-ries) {
+      let totalEventsProcessed = 0;
+
+      // Sync events from each enabled calendar
+      for (const calendarId of calendarsToSync) {
+        // Implement retry logic for transient network errors
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount <= maxRetries) {
           try {
             console.log(`📡 Fetching events from Google Calendar: ${calendarId} (attempt ${retryCount + 1}/${maxRetries + 1})`);
             
