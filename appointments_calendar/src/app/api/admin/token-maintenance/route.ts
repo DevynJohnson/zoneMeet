@@ -1,7 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { TokenMaintenanceService } from '@/lib/token-maintenance';
 
-export async function POST() {
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.ADMIN_SECRET || 'change-this-secret-in-production';
+  return authHeader === `Bearer ${adminSecret}`;
+}
+
+export async function POST(request: NextRequest) {
+  // Verify admin authentication
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     console.log('🔄 Starting proactive token refresh maintenance...');
     
@@ -44,7 +58,15 @@ export async function POST() {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Verify admin authentication
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     // Just return health statistics for monitoring
     const healthStats = await TokenMaintenanceService.getTokenHealthStats();

@@ -1,11 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { AvailabilityService } from '@/lib/availability-service';
 
-async function fixTemplates() {
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.ADMIN_SECRET || 'change-this-secret-in-production';
+  return authHeader === `Bearer ${adminSecret}`;
+}
+
+async function fixTemplates(request: NextRequest) {
+  // Verify admin authentication
+  if (!isAuthorized(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
-    // For security, you might want to add admin authentication here
-    // For now, just run the fix
-    
     await AvailabilityService.fixAllMultipleDefaults();
     
     return NextResponse.json({ 
@@ -21,10 +32,10 @@ async function fixTemplates() {
   }
 }
 
-export async function POST() {
-  return fixTemplates();
+export async function POST(request: NextRequest) {
+  return fixTemplates(request);
 }
 
-export async function GET() {
-  return fixTemplates();
+export async function GET(request: NextRequest) {
+  return fixTemplates(request);
 }
