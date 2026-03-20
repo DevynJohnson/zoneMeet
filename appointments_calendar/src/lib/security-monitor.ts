@@ -29,6 +29,9 @@ export interface SecurityEvent {
   userId?: string;
   url: string;
   details: Record<string, unknown>;
+  statusCode?: number;
+  wafAction?: 'allow' | 'block' | 'challenge';
+  matchedRule?: string;
   fingerprint?: string;
 }
 
@@ -66,9 +69,19 @@ class SecurityMonitor {
    * Log a security event
    */
   logEvent(event: Omit<SecurityEvent, 'timestamp' | 'fingerprint'>): void {
+    const statusCode =
+      typeof event.details?.statusCode === 'number' ? (event.details.statusCode as number) : event.statusCode;
+    const wafActionRaw =
+      typeof event.details?.wafAction === 'string' ? event.details.wafAction : event.wafAction;
+    const matchedRule =
+      typeof event.details?.matchedRule === 'string' ? (event.details.matchedRule as string) : event.matchedRule;
+
     const securityEvent: SecurityEvent = {
       ...event,
       timestamp: new Date().toISOString(),
+      statusCode,
+      wafAction: wafActionRaw === 'allow' || wafActionRaw === 'block' || wafActionRaw === 'challenge' ? wafActionRaw : undefined,
+      matchedRule,
       fingerprint: this.generateFingerprint(event),
     };
     
@@ -420,6 +433,9 @@ class SecurityMonitor {
       severity: event.severity,
       url: event.url,
       userAgent: event.userAgent,
+      statusCode: event.statusCode,
+      wafAction: event.wafAction,
+      matchedRule: event.matchedRule,
       details: event.details,
     });
   }

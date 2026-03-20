@@ -30,6 +30,52 @@ const defaultWAFConfig: WAFConfig = {
   enabled: process.env.WAF_ENABLED !== 'false',
 };
 
+interface PathProbeRule {
+  id: string;
+  pattern: RegExp;
+  status: number;
+  reason: string;
+}
+
+const PATH_PROBE_RULES: PathProbeRule[] = [
+  {
+    id: 'DOTFILE_ACCESS',
+    pattern: /(^|\/)\.(?!well-known(?:\/|$))[a-z0-9._-]+/i,
+    status: 404,
+    reason: 'Hidden file probing detected',
+  },
+  {
+    id: 'ENV_FILE_PROBE',
+    pattern: /(^|\/)(?:[^/]*\.)?env(?:\.[a-z0-9._-]+)?$/i,
+    status: 404,
+    reason: 'Environment file probing detected',
+  },
+  {
+    id: 'WP_PROBE',
+    pattern: /\/(?:wp-admin|wp-content|wp-json|wordpress)(?:\/|$)|\/wp-config(?:\.php)?/i,
+    status: 404,
+    reason: 'WordPress probing detected',
+  },
+  {
+    id: 'GIT_PROBE',
+    pattern: /\/(?:\.git|\.svn|\.hg)(?:\/|$)/i,
+    status: 404,
+    reason: 'Repository metadata probing detected',
+  },
+  {
+    id: 'SECRET_FILE_PROBE',
+    pattern: /\/(?:.*(?:secret|secrets|credential|credentials|stripe|payment|config|debug|error)[^/]*\.(?:json|ya?ml|ini|conf|log|bak|old|save|backup|txt))$/i,
+    status: 404,
+    reason: 'Secret/config file probing detected',
+  },
+  {
+    id: 'SENSITIVE_EXT_PROBE',
+    pattern: /\/(?:.*\.(?:bak|old|save|backup|swp|tmp))$/i,
+    status: 404,
+    reason: 'Backup/temp file probing detected',
+  },
+];
+
 export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultWAFConfig) {
   // Skip WAF if disabled
   if (!config.enabled) {
@@ -44,6 +90,7 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
 
   const clientIP = getClientIP(request);
   const userAgent = request.headers.get('user-agent') || '';
+  const method = request.method;
   
   // Track request for DoS detection (before any blocking logic)
   trackRequest(clientIP, userAgent, url.pathname);
@@ -54,24 +101,51 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
     logSuspiciousActivity('IP_BLOCKED', clientIP, userAgent, request.url, {
       reason: blockCheck.reason,
       duration: blockCheck.duration,
+      wafAction: 'block',
+      matchedRule: 'IP_BLOCKED',
+      statusCode: 403,
+      method,
     });
-    return createSecurityResponse(`IP blocked: ${blockCheck.reason}`, 403, 'IP_BLOCKED');
+    return createSecurityResponse(`IP blocked: ${blockCheck.reason}`, 403, 'IP_BLOCKED', 'IP_BLOCKED');
+  }
+
+  // 0b. Fast path: block common scanner/probe paths before deeper app handling
+  const pathProbe = detectPathProbe(url.pathname);
+  if (pathProbe.blocked) {
+    const matchedRule = pathProbe.rule ?? 'PATH_PROBE';
+    logSuspiciousActivity('SCANNER_DETECTED', clientIP, userAgent, request.url, {
+      reason: pathProbe.reason,
+      wafAction: 'block',
+      matchedRule,
+      statusCode: pathProbe.status,
+      method,
+      path: url.pathname,
+    });
+    return createSecurityResponse('Resource not found', pathProbe.status, 'RESOURCE_NOT_FOUND', matchedRule);
   }
   
   // 1. IP Blacklist Check
   if (config.ipBlacklist?.includes(clientIP)) {
     logSuspiciousActivity('IP_BLOCKED', clientIP, userAgent, request.url, {
       reason: 'IP in blacklist',
+      wafAction: 'block',
+      matchedRule: 'IP_BLACKLIST',
+      statusCode: 403,
+      method,
     });
-    return createSecurityResponse('Access denied', 403, 'IP_BLOCKED');
+    return createSecurityResponse('Access denied', 403, 'IP_BLOCKED', 'IP_BLACKLIST');
   }
   
   // 2. IP Whitelist Check (if configured)
   if (config.ipWhitelist && config.ipWhitelist.length > 0 && !config.ipWhitelist.includes(clientIP)) {
     logSuspiciousActivity('IP_BLOCKED', clientIP, userAgent, request.url, {
       reason: 'IP not in whitelist',
+      wafAction: 'block',
+      matchedRule: 'IP_NOT_WHITELISTED',
+      statusCode: 403,
+      method,
     });
-    return createSecurityResponse('Access denied', 403, 'IP_NOT_WHITELISTED');
+    return createSecurityResponse('Access denied', 403, 'IP_NOT_WHITELISTED', 'IP_NOT_WHITELISTED');
   }
   
   // 3. Rate Limiting
@@ -80,6 +154,10 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
     logSuspiciousActivity('RATE_LIMIT_EXCEEDED', clientIP, userAgent, request.url, {
       limit: config.rateLimit.maxRequests,
       window: config.rateLimit.windowMs,
+      wafAction: 'block',
+      matchedRule: 'RATE_LIMIT',
+      statusCode: 429,
+      method,
     });
     return createRateLimitResponse(rateLimit);
   }
@@ -115,9 +193,15 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
           clientIP,
           userAgent,
           request.url,
-          { pattern: suspiciousCheck.reason }
+          {
+            pattern: suspiciousCheck.reason,
+            wafAction: 'block',
+            matchedRule: 'SUSPICIOUS_PATTERN',
+            statusCode: 403,
+            method,
+          }
         );
-        return createSecurityResponse('Suspicious activity detected', 403, 'SUSPICIOUS_PATTERN');
+        return createSecurityResponse('Suspicious activity detected', 403, 'SUSPICIOUS_PATTERN', 'SUSPICIOUS_PATTERN');
       }
     }
   }
@@ -157,8 +241,12 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
       if (!headerValidation.isValid) {
         logSuspiciousActivity('CSRF_TOKEN_INVALID', clientIP, userAgent, request.url, {
           errors: headerValidation.errors,
+          wafAction: 'block',
+          matchedRule: 'INVALID_HEADERS',
+          statusCode: 400,
+          method,
         });
-        return createSecurityResponse('Invalid security headers', 400, 'INVALID_HEADERS');
+        return createSecurityResponse('Invalid security headers', 400, 'INVALID_HEADERS', 'INVALID_HEADERS');
       }
     }
   }
@@ -170,8 +258,25 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
   response.headers.set('X-RateLimit-Limit', config.rateLimit.maxRequests.toString());
   response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
   response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString());
+  response.headers.set('X-WAF-Action', 'allow');
   
   return response;
+}
+
+function detectPathProbe(pathname: string): { blocked: boolean; rule?: string; reason?: string; status: number } {
+  const normalizedPath = pathname.toLowerCase();
+  for (const rule of PATH_PROBE_RULES) {
+    if (rule.pattern.test(normalizedPath)) {
+      return {
+        blocked: true,
+        rule: rule.id,
+        reason: rule.reason,
+        status: rule.status,
+      };
+    }
+  }
+
+  return { blocked: false, status: 200 };
 }
 
 function getClientIP(request: NextRequest): string {
@@ -280,17 +385,24 @@ function detectSuspiciousPatterns(request: NextRequest): { isSuspicious: boolean
   return { isSuspicious: false };
 }
 
-function createSecurityResponse(message: string, status: number, code: string) {
+function createSecurityResponse(message: string, status: number, code: string, matchedRule: string) {
   return new NextResponse(
     JSON.stringify({
       error: 'Security violation',
       message,
       code,
+      wafAction: 'block',
+      matchedRule,
       timestamp: new Date().toISOString(),
     }),
     { 
       status,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'X-WAF-Action': 'block',
+        'X-WAF-Rule': matchedRule,
+      }
     }
   );
 }
@@ -307,6 +419,9 @@ function createRateLimitResponse(rateLimit: { remaining: number; resetTime: numb
       headers: { 
         'Content-Type': 'application/json',
         'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+        'Cache-Control': 'no-store',
+        'X-WAF-Action': 'block',
+        'X-WAF-Rule': 'RATE_LIMIT',
       }
     }
   );
