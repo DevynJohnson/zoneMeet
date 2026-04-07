@@ -27,24 +27,69 @@ export async function GET(request: NextRequest) {
     const email = url.searchParams.get('email');
     const appPassword = url.searchParams.get('appPassword');
 
-    if (!platformParam) {
-      return NextResponse.json({ error: 'Platform is required' }, { status: 400 });
+    // If connectionId is present, trust the platform on the connection record.
+    // This avoids client-side platform/query mismatches from breaking valid requests.
+    let connection: {
+      id: string;
+      platform: 'GOOGLE' | 'OUTLOOK' | 'TEAMS' | 'APPLE';
+      email: string;
+      accessToken: string;
+      refreshToken: string | null;
+      tokenExpiry: Date | null;
+      isActive: boolean;
+    } | null = null;
+
+    if (connectionId) {
+      connection = await prisma.calendarConnection.findFirst({
+        where: {
+          id: connectionId,
+          providerId,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          platform: true,
+          email: true,
+          accessToken: true,
+          refreshToken: true,
+          tokenExpiry: true,
+          isActive: true,
+        },
+      });
+
+      if (!connection) {
+        return NextResponse.json({ error: 'Calendar connection not found' }, { status: 404 });
+      }
     }
 
-    // Validate platform enum
+    // Validate platform enum when passed explicitly (for legacy callers)
     const validPlatforms = ['GOOGLE', 'OUTLOOK', 'TEAMS', 'APPLE'];
-    if (!validPlatforms.includes(platformParam)) {
+    if (platformParam && !validPlatforms.includes(platformParam)) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    const platform = platformParam as 'GOOGLE' | 'OUTLOOK' | 'TEAMS' | 'APPLE';
+    const platform = (connection?.platform || platformParam) as 'GOOGLE' | 'OUTLOOK' | 'TEAMS' | 'APPLE' | null;
+
+    if (!platform) {
+      return NextResponse.json({ error: 'Platform is required' }, { status: 400 });
+    }
+
+    if (platformParam && connection && platformParam !== connection.platform) {
+      console.warn('Platform parameter mismatch for available-calendars request', {
+        providerId,
+        connectionId,
+        requestedPlatform: platformParam,
+        connectionPlatform: connection.platform,
+      });
+    }
 
     // For Apple Calendar, fetch from connection if connectionId is provided
     if (platform === 'APPLE') {
       // Try to use connectionId first (new approach)
       if (connectionId) {
-        // Find the calendar connection for this provider and platform
-        const connection = await prisma.calendarConnection.findFirst({
+        // If we already loaded connection from connectionId, reuse it.
+        // Fallback to a constrained query for safety.
+        const appleConnection = connection ?? await prisma.calendarConnection.findFirst({
           where: {
             id: connectionId,
             providerId: providerId,
@@ -53,27 +98,27 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        if (!connection) {
+        if (!appleConnection) {
           return NextResponse.json({ error: 'Apple Calendar connection not found' }, { status: 404 });
         }
 
         // Decode Apple credentials from accessToken
         try {
-          let appleEmail = connection.email;
+          let appleEmail = appleConnection.email;
           let applePassword = '';
 
           // Try to decode credentials from accessToken
-          if (connection.accessToken) {
+          if (appleConnection.accessToken) {
             try {
               // Try new format: base64 encoded JSON
-              const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
+              const decoded = Buffer.from(appleConnection.accessToken, 'base64').toString('utf8');
               const credentials = JSON.parse(decoded);
-              appleEmail = credentials.appleId || connection.email;
+              appleEmail = credentials.appleId || appleConnection.email;
               applePassword = credentials.appSpecificPassword;
             } catch {
               // Fallback: try base64 encoded "email:password" format
               try {
-                const decoded = Buffer.from(connection.accessToken, 'base64').toString('utf8');
+                const decoded = Buffer.from(appleConnection.accessToken, 'base64').toString('utf8');
                 const [decodedEmail, decodedPassword] = decoded.split(':');
                 if (decodedEmail && decodedPassword) {
                   appleEmail = decodedEmail;
@@ -81,7 +126,7 @@ export async function GET(request: NextRequest) {
                 }
               } catch {
                 // Last fallback: treat accessToken as plain password
-                applePassword = connection.accessToken;
+                applePassword = appleConnection.accessToken;
               }
             }
           }
@@ -186,7 +231,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find the calendar connection for this provider and platform
-    const connection = await prisma.calendarConnection.findFirst({
+    const oauthConnection = connection ?? await prisma.calendarConnection.findFirst({
       where: {
         id: connectionId,
         providerId: providerId,
@@ -195,17 +240,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!connection) {
+    if (!oauthConnection) {
       return NextResponse.json({ error: 'Calendar connection not found' }, { status: 404 });
     }
 
     // Use token refresh system to ensure we have a valid access token
     const validConnection = {
-      id: connection.id,
-      accessToken: connection.accessToken,
-      refreshToken: connection.refreshToken || null,
-      tokenExpiry: connection.tokenExpiry,
-      platform: connection.platform,
+      id: oauthConnection.id,
+      accessToken: oauthConnection.accessToken,
+      refreshToken: oauthConnection.refreshToken || null,
+      tokenExpiry: oauthConnection.tokenExpiry,
+      platform: oauthConnection.platform,
     };
 
     let validAccessToken: string;

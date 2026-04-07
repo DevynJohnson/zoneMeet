@@ -10,6 +10,7 @@ export interface WAFConfig {
   ipWhitelist?: string[];
   ipBlacklist?: string[];
   blockSuspiciousPatterns: boolean;
+  blockBasicHttpClients: boolean;
   enabled: boolean;
 }
 
@@ -27,6 +28,7 @@ const defaultWAFConfig: WAFConfig = {
     ? process.env.WAF_IP_BLACKLIST.split(',').map(ip => ip.trim()).filter(Boolean)
     : undefined,
   blockSuspiciousPatterns: process.env.WAF_BLOCK_SUSPICIOUS_PATTERNS !== 'false',
+  blockBasicHttpClients: process.env.WAF_BLOCK_BASIC_HTTP_CLIENTS === 'true',
   enabled: process.env.WAF_ENABLED !== 'false',
 };
 
@@ -183,7 +185,9 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
     pathname.includes('apple');
     
     if (!isOAuthOrCalendar) {
-      const suspiciousCheck = detectSuspiciousPatterns(request);
+      const suspiciousCheck = detectSuspiciousPatterns(request, {
+        blockBasicHttpClients: config.blockBasicHttpClients,
+      });
       if (suspiciousCheck.isSuspicious) {
         logSuspiciousActivity(
           suspiciousCheck.reason === 'SQL_INJECTION' ? 'SQL_INJECTION_ATTEMPT' :
@@ -236,7 +240,10 @@ export function wafMiddleware(request: NextRequest, config: WAFConfig = defaultW
       pathname === endpoint || pathname.startsWith(endpoint)
     );
     
-    if (!isAuthEndpoint) {
+    // CSRF/header validation only makes sense for cookie-authenticated traffic.
+    // This avoids blocking legitimate machine-to-machine calls that do not rely on browser cookies.
+    const hasCookies = Boolean(request.headers.get('cookie'));
+    if (!isAuthEndpoint && hasCookies) {
       const headerValidation = validateSecurityHeaders(request);
       if (!headerValidation.isValid) {
         logSuspiciousActivity('CSRF_TOKEN_INVALID', clientIP, userAgent, request.url, {
@@ -294,7 +301,10 @@ function getClientIP(request: NextRequest): string {
   return ip || 'unknown';
 }
 
-function detectSuspiciousPatterns(request: NextRequest): { isSuspicious: boolean; reason?: string } {
+function detectSuspiciousPatterns(
+  request: NextRequest,
+  options: { blockBasicHttpClients: boolean }
+): { isSuspicious: boolean; reason?: string } {
   const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
   const pathname = new URL(request.url).pathname.toLowerCase();
   const searchParams = new URL(request.url).searchParams;
@@ -362,8 +372,11 @@ function detectSuspiciousPatterns(request: NextRequest): { isSuspicious: boolean
     const maliciousUserAgentPatterns = [
       /nikto|nessus|openvas|sqlmap|burp|nmap|masscan/i,
       /gobuster|dirb|dirbuster|wfuzz|ffuf/i,
-      /^curl\/|^wget\/|^python-requests/i, // Only basic curl/wget without browser context
     ];
+
+    if (options.blockBasicHttpClients) {
+      maliciousUserAgentPatterns.push(/^curl\/|^wget\/|^python-requests/i);
+    }
     
     // Don't flag legitimate OAuth client libraries
     const legitOAuthClients = [
