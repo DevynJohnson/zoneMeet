@@ -82,7 +82,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    const platform: SupportedPlatform | null = connection?.platform || platformParam;
+    let platform: SupportedPlatform | null = null;
+    if (connection) {
+      platform = connection.platform;
+    } else if (platformParam && isSupportedPlatform(platformParam)) {
+      platform = platformParam;
+    }
 
     if (!platform) {
       return NextResponse.json({ error: 'Platform is required' }, { status: 400 });
