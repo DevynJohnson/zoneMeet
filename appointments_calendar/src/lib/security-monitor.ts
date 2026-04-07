@@ -58,6 +58,10 @@ class SecurityMonitor {
   private requestLogs: RequestLog[] = [];
   private maxRequestLogs = 50000; // Track last 50k requests for DoS detection
   private dosAlertedIPs: Map<string, number> = new Map(); // Track IPs we've already alerted about
+
+  private readonly dosThreshold1Min = parseInt(process.env.DOS_THRESHOLD_1MIN || '120', 10);
+  private readonly dosThreshold5Min = parseInt(process.env.DOS_THRESHOLD_5MIN || '400', 10);
+  private readonly dosBrowserGrace1Min = parseInt(process.env.DOS_BROWSER_GRACE_1MIN || '180', 10);
   
   constructor() {
     // Clean up old events periodically
@@ -151,11 +155,14 @@ class SecurityMonitor {
       return; // Don't spam alerts for the same IP
     }
     
-    // DoS detection thresholds
-    const DOS_THRESHOLD_1MIN = 50; // 50+ requests in 1 minute
-    const DOS_THRESHOLD_5MIN = 150; // 150+ requests in 5 minutes
+    // Browsers can legitimately burst due to parallel API calls, retries, and SPA hydration.
+    // Give browser user-agents a higher threshold to reduce false positives.
+    const normalizedUA = userAgent.toLowerCase();
+    const isBrowserUA = /(mozilla|chrome|safari|edge|firefox|webkit)/i.test(normalizedUA);
+    const threshold1Min = isBrowserUA ? this.dosBrowserGrace1Min : this.dosThreshold1Min;
+    const threshold5Min = this.dosThreshold5Min;
     
-    if (requestsLastMinute >= DOS_THRESHOLD_1MIN) {
+    if (requestsLastMinute >= threshold1Min) {
       this.dosAlertedIPs.set(ip, now);
       this.logEvent({
         type: 'DOS_ATTACK_DETECTED',
@@ -169,7 +176,7 @@ class SecurityMonitor {
           pattern: 'rapid_fire_requests',
         },
       });
-    } else if (requestsLastFiveMinutes >= DOS_THRESHOLD_5MIN) {
+    } else if (requestsLastFiveMinutes >= threshold5Min) {
       this.dosAlertedIPs.set(ip, now);
       this.logEvent({
         type: 'DOS_ATTACK_DETECTED',
@@ -404,7 +411,8 @@ class SecurityMonitor {
       event => event.type === 'DOS_ATTACK_DETECTED'
     ).length;
     
-    if (dosEvents >= 1) {
+    // Require repeated DoS signals before hard-blocking to avoid punishing legitimate bursts.
+    if (dosEvents >= 3) {
       return { 
         block: true, 
         reason: 'DoS attack detected', 
