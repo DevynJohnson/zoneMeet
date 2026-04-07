@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
         where: {
           id: connectionId,
           providerId,
-          isActive: true,
         },
         select: {
           id: true,
@@ -109,7 +108,6 @@ export async function GET(request: NextRequest) {
             id: connectionId,
             providerId: providerId,
             platform: platform,
-            isActive: true,
           },
         });
 
@@ -251,7 +249,6 @@ export async function GET(request: NextRequest) {
         id: connectionId,
         providerId: providerId,
         platform: platform,
-        isActive: true,
       },
     });
 
