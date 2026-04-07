@@ -4,6 +4,13 @@ import { ensureValidToken } from '@/lib/token-refresh';
 import { extractAndVerifyJWT } from '@/lib/jwt-utils';
 import { prisma } from '@/lib/db';
 
+const SUPPORTED_PLATFORMS = ['GOOGLE', 'OUTLOOK', 'TEAMS', 'APPLE'] as const;
+type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+
+function isSupportedPlatform(platform: string): platform is SupportedPlatform {
+  return (SUPPORTED_PLATFORMS as readonly string[]).includes(platform);
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Get provider ID from JWT with proper error handling
@@ -31,7 +38,7 @@ export async function GET(request: NextRequest) {
     // This avoids client-side platform/query mismatches from breaking valid requests.
     let connection: {
       id: string;
-      platform: 'GOOGLE' | 'OUTLOOK' | 'TEAMS' | 'APPLE';
+      platform: SupportedPlatform;
       email: string;
       accessToken: string;
       refreshToken: string | null;
@@ -40,7 +47,7 @@ export async function GET(request: NextRequest) {
     } | null = null;
 
     if (connectionId) {
-      connection = await prisma.calendarConnection.findFirst({
+      const connectionRecord = await prisma.calendarConnection.findFirst({
         where: {
           id: connectionId,
           providerId,
@@ -57,18 +64,26 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      if (!connection) {
+      if (!connectionRecord) {
         return NextResponse.json({ error: 'Calendar connection not found' }, { status: 404 });
       }
+
+      if (!isSupportedPlatform(connectionRecord.platform)) {
+        return NextResponse.json({ error: 'Unsupported calendar platform' }, { status: 400 });
+      }
+
+      connection = {
+        ...connectionRecord,
+        platform: connectionRecord.platform,
+      };
     }
 
     // Validate platform enum when passed explicitly (for legacy callers)
-    const validPlatforms = ['GOOGLE', 'OUTLOOK', 'TEAMS', 'APPLE'];
-    if (platformParam && !validPlatforms.includes(platformParam)) {
+    if (platformParam && !isSupportedPlatform(platformParam)) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    const platform = (connection?.platform || platformParam) as 'GOOGLE' | 'OUTLOOK' | 'TEAMS' | 'APPLE' | null;
+    const platform: SupportedPlatform | null = connection?.platform || platformParam;
 
     if (!platform) {
       return NextResponse.json({ error: 'Platform is required' }, { status: 400 });
