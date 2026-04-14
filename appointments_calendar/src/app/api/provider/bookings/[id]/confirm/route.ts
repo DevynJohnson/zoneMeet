@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractAndVerifyJWT } from '@/lib/jwt-utils';
 import { prisma } from '@/lib/db';
 import { emailService } from '@/lib/maileroo-email-service';
+import { ensureValidToken } from '@/lib/token-refresh';
 
 interface CalendarConnection {
   id: string;
@@ -10,6 +11,7 @@ interface CalendarConnection {
   calendarId: string;
   accessToken: string;
   refreshToken?: string | null;
+  tokenExpiry?: Date | null;
 }
 
 interface BookingWithRelations {
@@ -312,6 +314,14 @@ try {
 // Helper function to create calendar event (reused from client confirmation)
 async function createCalendarEvent(booking: BookingWithRelations, calendarConnection: CalendarConnection) {
   try {
+    const accessToken = await ensureValidToken({
+      id: calendarConnection.id,
+      accessToken: calendarConnection.accessToken,
+      refreshToken: calendarConnection.refreshToken || null,
+      tokenExpiry: calendarConnection.tokenExpiry || null,
+      platform: calendarConnection.platform,
+    });
+
     const startTime = new Date(booking.scheduledAt);
     const endTime = new Date(startTime.getTime() + (booking.duration * 60 * 1000));
     
@@ -331,9 +341,9 @@ async function createCalendarEvent(booking: BookingWithRelations, calendarConnec
     };
 
     if (calendarConnection.platform === 'GOOGLE') {
-      await createGoogleCalendarEvent(calendarConnection.accessToken, calendarConnection.calendarId, eventData);
+      await createGoogleCalendarEvent(accessToken, calendarConnection.calendarId, eventData);
     } else if (calendarConnection.platform === 'OUTLOOK' || calendarConnection.platform === 'TEAMS') {
-      await createOutlookCalendarEvent(calendarConnection.accessToken, calendarConnection.calendarId, eventData);
+      await createOutlookCalendarEvent(accessToken, calendarConnection.calendarId, eventData);
     }
 
   } catch (error) {
@@ -343,7 +353,7 @@ async function createCalendarEvent(booking: BookingWithRelations, calendarConnec
 }
 
 async function createGoogleCalendarEvent(accessToken: string, calendarId: string, eventData: CalendarEventData) {
-  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -353,7 +363,11 @@ async function createGoogleCalendarEvent(accessToken: string, calendarId: string
   });
 
   if (!response.ok) {
-    throw new Error(`Google Calendar API error: ${response.status}`);
+    const errorText = await response.text();
+    const guidance = response.status === 403
+      ? 'Google rejected calendar write access. This usually means missing calendar.events scope or a read-only calendar. Re-authenticate Google and pick a writable calendar.'
+      : 'Google Calendar request failed.';
+    throw new Error(`Google Calendar API error: ${response.status}. ${guidance} Response: ${errorText}`);
   }
 
   return response.json();
