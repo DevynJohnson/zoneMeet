@@ -448,10 +448,11 @@ export class CalendarConnectionService {
       `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
       `response_type=code&` +
       `redirect_uri=${encodeURIComponent(process.env.GOOGLE_REDIRECT_URI!)}&` +
-      `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly')}&` +
+      `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events')}&` +
       `state=${googleStateParam}&` +
       `access_type=offline&` +
-      `prompt=select_account`;
+      `prompt=consent&` +
+      `include_granted_scopes=true`;
 
     return {
       outlook: outlookAuthUrl,

@@ -1,6 +1,7 @@
 // Google Calendar OAuth callback
 import { NextRequest, NextResponse } from 'next/server';
 import { CalendarConnectionService } from '@/lib/calendar-connections';
+import { prisma } from '@/lib/db';
 import { CalendarPlatform } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -143,6 +144,18 @@ export async function GET(request: NextRequest) {
         email: userEmail,
         calendarId: calendarInfo.id
       });
+
+      const existingConnection = await prisma.calendarConnection.findUnique({
+        where: { id: connectionId },
+        select: { refreshToken: true }
+      });
+
+      if (!tokens.refresh_token && !existingConnection?.refreshToken) {
+        console.log('❌ Re-auth did not return a refresh token and no existing refresh token is stored');
+        return NextResponse.redirect(
+          new URL('/provider/calendar/connect?error=missing_refresh_token', baseUrl)
+        );
+      }
       
       // Update the existing connection with new tokens
       await CalendarConnectionService.updateConnection(connectionId, {
@@ -167,6 +180,13 @@ export async function GET(request: NextRequest) {
         email: userEmail,
         calendarId: calendarInfo.id
       });
+
+      if (!tokens.refresh_token) {
+        console.log('❌ New Google auth completed without refresh token');
+        return NextResponse.redirect(
+          new URL('/provider/calendar/connect?error=missing_refresh_token', baseUrl)
+        );
+      }
       
       await CalendarConnectionService.createConnection({
         providerId,
